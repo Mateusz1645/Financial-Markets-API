@@ -23,33 +23,38 @@ app = FastAPI(
 @app.post("/upload-portfolio")
 def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)):
     df = pd.read_excel(file.file)
-    for _, row in df.iterrows():
-        symbol, amount = row["symbol"], row["amount"]
-        asset = db.query(Asset).filter(Asset.symbol == symbol.upper()).first()
+    df_grouped = df.groupby("ISIN", as_index=False).agg({
+        "QUANTITY": "sum",
+        "TRANSACTION PRICE": "sum"
+    })
+    for _, row in df_grouped.iterrows():
+        isin, amount, transaction_price = row["ISIN"], row["QUANTITY"], row["TRANSACTION PRICE"]
+        asset = db.query(Asset).filter(Asset.isin == isin.upper()).first()
         if asset:
             asset.amount += amount
+            asset.transaction_price += transaction_price
         else:
-            asset = Asset(symbol=symbol.upper(), amount=amount)
+            asset = Asset(isin=isin.upper(), amount=amount, transaction_price=transaction_price)
             db.add(asset)
     db.commit()
     return {"status": "success", "message": f"{len(df)} assets uploaded"}
 
-@app.post("/portfolio/add")
-def add_asset(symbol: str, amount: float, db: Session = Depends(get_db)):
-    asset = db.query(Asset).filter(Asset.symbol == symbol.upper()).first()
-    if asset:
-        asset.amount += amount
-    else:
-        asset = Asset(symbol=symbol.upper(), amount=amount)
-        db.add(asset)
-    db.commit()
-    db.refresh(asset)
-    return {"symbol": asset.symbol, "amount": asset.amount}
+# @app.post("/portfolio/add")
+# def add_asset(symbol: str, amount: float, db: Session = Depends(get_db)):
+#     asset = db.query(Asset).filter(Asset.symbol == symbol.upper()).first()
+#     if asset:
+#         asset.amount += amount
+#     else:
+#         asset = Asset(symbol=symbol.upper(), amount=amount)
+#         db.add(asset)
+#     db.commit()
+#     db.refresh(asset)
+#     return {"symbol": asset.symbol, "amount": asset.amount}
 
 @app.get("/portfolio")
 def list_assets(db: Session = Depends(get_db)):
     assets = db.query(Asset).all()
-    return [{"symbol": a.symbol, "amount": a.amount} for a in assets]
+    return [{"symbol": a.isin, "amount": a.amount} for a in assets]
 
 @app.get("/portfolio/value")
 def portfolio_value(db: Session = Depends(get_db)):
