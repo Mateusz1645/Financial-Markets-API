@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from db import get_db
 from models import Asset
 from datetime import datetime, timedelta
+from typing import Optional
 import pandas as pd
 
 router = APIRouter()
@@ -33,6 +34,12 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
         type_ = row.get("TYPE", None)
         coupon_rate = row.get("COUPON RATE (%)", None)
 
+        # If bond must have coupon_rate input
+        if type_.upper() == "BOND" and coupon_rate is None:
+            raise HTTPException(status_code=400, detail=f"coupon_rate is required for BOND type \n check input file {file.filename}")
+        if type_.upper() != "BOND":
+            coupon_rate = None
+
         transaction_date = datetime.strptime(date, "%d.%m.%Y %H:%M")
         start_of_day = datetime(transaction_date.year, transaction_date.month, transaction_date.day)
         end_of_day = start_of_day + timedelta(days=1)
@@ -62,6 +69,52 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
     db.commit()
     return {"status": "success", "message": f"{len(df)} assets uploaded"}
 
+
+@router.post("/assets/add")
+def add_asset(isin: str, amount: float, date: str, transaction_price: float, currency: str, type_: str, coupon_rate: Optional[float] = None, db: Session = Depends(get_db)):
+    """
+    Add a single asset to the database manually.
+    """
+    try:
+        transaction_date = datetime.strptime(date, "%d.%m.%Y %H:%M")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Date must be in format DD.MM.YYYY HH:MM")
+    # If bond must have coupon_rate input
+    if type_.upper() == "BOND" and coupon_rate is None:
+        raise HTTPException(status_code=400, detail="coupon_rate is required for BOND type")
+    if type_.upper() != "BOND":
+        coupon_rate = None
+
+    start_of_day = datetime(transaction_date.year, transaction_date.month, transaction_date.day)
+    end_of_day = start_of_day + timedelta(days=1)
+
+
+    asset = db.query(Asset).filter(
+        Asset.isin == isin.upper(),
+        Asset.type_ == type_,
+        Asset.currency == currency,
+        Asset.coupon_rate == coupon_rate,
+        Asset.date >= start_of_day,
+        Asset.date < end_of_day
+    ).first()
+
+    if asset:
+        asset.amount += amount
+        asset.transaction_price += transaction_price
+    else:
+        asset = Asset(
+            isin=isin.upper(),
+            amount=amount,
+            date=transaction_date,
+            transaction_price=transaction_price,
+            currency=currency,
+            type_=type_,
+            coupon_rate=coupon_rate
+        )
+        db.add(asset)
+
+    db.commit()
+    return {"status": "success", "message": "Asset added or updated"}
 
 @router.get("/assets/")
 def list_assets(db: Session = Depends(get_db)):
