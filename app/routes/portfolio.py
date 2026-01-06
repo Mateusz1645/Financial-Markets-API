@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from db import get_db
 from models import Asset
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional ,List
 import pandas as pd
 
 router = APIRouter()
@@ -135,3 +135,44 @@ def list_assets(db: Session = Depends(get_db)):
         })
     
     return result
+
+@router.get("/assets/choices")
+def assets_choices(db: Session = Depends(get_db)):
+    """
+    List available assets (ISIN + NAME) for selection.
+    """
+    assets = db.query(Asset).all()
+    unique_assets = {}
+    for a in assets:
+        if a.isin not in unique_assets:
+            unique_assets[a.isin] = a.name if hasattr(a, "name") else a.isin
+    return [{"isin": isin, "name": name} for isin, name in unique_assets.items()]
+
+@router.post("/assets/value/calc")
+def calculate_portfolio_value(isins: List[str], db: Session = Depends(get_db)):
+    """
+    Calculate total value of selected assets.
+    """
+    if not isins:
+        raise HTTPException(status_code=400, detail="No ISINs provided")
+
+    assets = db.query(Asset).filter(Asset.isin.in_([isin.upper() for isin in isins])).all()
+    
+    if not assets:
+        raise HTTPException(status_code=404, detail="No assets found for provided ISINs")
+
+    total_value = 0
+    result = []
+
+    for a in assets:
+        value = (a.transaction_price if a.transaction_price else 0)
+        total_value += value
+        result.append({
+            "isin": a.isin,
+            "name": getattr(a, "name", a.isin),
+            "amount": a.amount,
+            "value_before": a.transaction_price,
+            "value_now": value
+        })
+    
+    return {"total_value": total_value, "assets": result}
