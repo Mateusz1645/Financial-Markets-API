@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 import pandas as pd
 import requests
-
+import time
 ID_PERIOD_TO_MONTH_GUS_API = {
     1: 247,  # January
     2: 248,  # February
@@ -29,7 +29,10 @@ def get_inflation_for_month(month, year):
             records = data.get('data', [])
             df = pd.DataFrame(records)
             df = df[(df['id-pozycja-2'] == 6656078) & (df['id-sposob-prezentacji-miara'] == 5)] # 6656078 for Poland in general and 5 for cpi
-            return df['wartosc'].iloc[0]
+            if df.empty:
+                return None
+            time.sleep(1) # to not overloard gus api
+            return df['wartosc'].iloc[0] - 100
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error from api-sdp.stat.gov: {e, response.status_code}")
     
