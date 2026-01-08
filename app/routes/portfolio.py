@@ -9,9 +9,12 @@ from services.bond_pricing_service import calculate_value_of_bond
 from utils.date_utils import parse_date
 import pandas as pd
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/assets",
+    tags=["Portfolio"]
+)
 
-@router.post("/assets/upload")
+@router.post("/upload")
 def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
     Upload a portfolio file (Excel or CSV) to the database.
@@ -83,7 +86,7 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
     return {"status": "success", "message": f"{len(df)} assets uploaded"}
 
 
-@router.post("/assets/add")
+@router.post("/add")
 def add_asset(isin: str, name: str, amount: float, date: str, transaction_price: float, currency: str, type_: str, coupon_rate: Optional[float] = None, inflation_first_year: Optional[float] = None, db: Session = Depends(get_db)):
     """
     Add a single asset to the database manually.
@@ -136,7 +139,7 @@ def add_asset(isin: str, name: str, amount: float, date: str, transaction_price:
     db.commit()
     return {"status": "success", "message": "Asset added or updated"}
 
-@router.get("/assets/")
+@router.get("/list")
 def list_assets(db: Session = Depends(get_db)):
     """
     List all assets in the database.
@@ -158,7 +161,7 @@ def list_assets(db: Session = Depends(get_db)):
     
     return result
 
-@router.get("/assets/choices")
+@router.get("/choices")
 def assets_choices(db: Session = Depends(get_db)):
     """
     List available assets (ISIN + NAME) for selection.
@@ -170,7 +173,7 @@ def assets_choices(db: Session = Depends(get_db)):
             unique_assets[a.isin] = a.name if hasattr(a, "name") else a.isin
     return [{"isin": isin, "name": name} for isin, name in unique_assets.items()]
 
-@router.post("/asset/calc_current_value")
+@router.post("/calc_current_value")
 def calculate_asset_value(isin: str, date: str, type: str, db: Session = Depends(get_db)):
     """
     Calculate value of selected asset.
