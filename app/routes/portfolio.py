@@ -27,6 +27,7 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
     
     for _, row in df.iterrows():
         isin = row["ISIN"].upper()
+        name = row["NAME"]
         amount = row["QUANTITY"]
         date = row["DATE"]
         transaction_price = row["TRANSACTION PRICE"]
@@ -46,6 +47,7 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
 
         asset = db.query(Asset).filter(
             Asset.isin == isin.upper(),
+            Asset.name == name,
             Asset.currency == currency,
             Asset.type_ == type_,
             Asset.coupon_rate == coupon_rate,
@@ -59,6 +61,7 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
         else:
             asset = Asset(
                 isin=isin.upper(),
+                name=name,
                 date=transaction_date,
                 amount=amount,
                 transaction_price=transaction_price,
@@ -71,7 +74,7 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
 
 
 @router.post("/assets/add")
-def add_asset(isin: str, amount: float, date: str, transaction_price: float, currency: str, type_: str, coupon_rate: Optional[float] = None, db: Session = Depends(get_db)):
+def add_asset(isin: str, name: str, amount: float, date: str, transaction_price: float, currency: str, type_: str, coupon_rate: Optional[float] = None, db: Session = Depends(get_db)):
     """
     Add a single asset to the database manually.
     """
@@ -91,6 +94,7 @@ def add_asset(isin: str, amount: float, date: str, transaction_price: float, cur
 
     asset = db.query(Asset).filter(
         Asset.isin == isin.upper(),
+        Asset.name == name,
         Asset.type_ == type_,
         Asset.currency == currency,
         Asset.coupon_rate == coupon_rate,
@@ -104,6 +108,7 @@ def add_asset(isin: str, amount: float, date: str, transaction_price: float, cur
     else:
         asset = Asset(
             isin=isin.upper(),
+            name = name,
             amount=amount,
             date=transaction_date,
             transaction_price=transaction_price,
@@ -126,6 +131,7 @@ def list_assets(db: Session = Depends(get_db)):
     for a in assets:
         result.append({
             "symbol": a.isin,
+            "name": a.name,
             "date": a.date.isoformat() if a.date else None,
             "amount": float(a.amount) if a.amount is not None and pd.notna(a.amount) else 0,
             "transaction_price": float(a.transaction_price) if a.transaction_price is not None and pd.notna(a.transaction_price) else 0,
@@ -148,31 +154,31 @@ def assets_choices(db: Session = Depends(get_db)):
             unique_assets[a.isin] = a.name if hasattr(a, "name") else a.isin
     return [{"isin": isin, "name": name} for isin, name in unique_assets.items()]
 
-@router.post("/assets/value/calc")
-def calculate_portfolio_value(isins: List[str], db: Session = Depends(get_db)):
-    """
-    Calculate total value of selected assets.
-    """
-    if not isins:
-        raise HTTPException(status_code=400, detail="No ISINs provided")
+# @router.post("/assets/value/calc")
+# def calculate_portfolio_value(isins: List[str], db: Session = Depends(get_db)):
+#     """
+#     Calculate total value of selected assets.
+#     """
+#     if not isins:
+#         raise HTTPException(status_code=400, detail="No ISINs provided")
 
-    assets = db.query(Asset).filter(Asset.isin.in_([isin.upper() for isin in isins])).all()
+#     assets = db.query(Asset).filter(Asset.isin.in_([isin.upper() for isin in isins])).all()
     
-    if not assets:
-        raise HTTPException(status_code=404, detail="No assets found for provided ISINs")
+#     if not assets:
+#         raise HTTPException(status_code=404, detail="No assets found for provided ISINs")
 
-    total_value = 0
-    result = []
+#     total_value = 0
+#     result = []
 
-    for a in assets:
-        value = (a.transaction_price if a.transaction_price else 0)
-        total_value += value
-        result.append({
-            "isin": a.isin,
-            "name": getattr(a, "name", a.isin),
-            "amount": a.amount,
-            "value_before": a.transaction_price,
-            "value_now": value
-        })
+#     for a in assets:
+#         value = (a.transaction_price if a.transaction_price else 0)
+#         total_value += value
+#         result.append({
+#             "isin": a.isin,
+#             "name": getattr(a, "name", a.isin),
+#             "amount": a.amount,
+#             "value_before": a.transaction_price,
+#             "value_now": value
+#         })
     
-    return {"total_value": total_value, "assets": result}
+#     return {"total_value": total_value, "assets": result}
