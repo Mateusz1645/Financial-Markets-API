@@ -31,5 +31,5 @@ def get_inflation_for_month(month, year):
             df = df[(df['id-pozycja-2'] == 6656078) & (df['id-sposob-prezentacji-miara'] == 5)] # 6656078 for Poland in general and 5 for cpi
             return df['wartosc'].iloc[0]
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error from api-sdp.stat.gov: {response.status_code}")
+        raise HTTPException(status_code=400, detail=f"Error from api-sdp.stat.gov: {e, response.status_code}")
     

@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from db import get_db
 from models import Asset
 from datetime import datetime, timedelta
-from typing import Optional ,List
+from typing import Optional
+from services.bond_pricing_service import calculate_value_of_bond
 import pandas as pd
 
 router = APIRouter()
@@ -34,12 +35,14 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
         currency = row.get("CURRENCY", None)
         type_ = row.get("TYPE", None)
         coupon_rate = row.get("COUPON RATE (%)", None)
+        inflation_first_year = row.get("INFLATION_FIRST_YEAR", None)
 
-        # If bond must have coupon_rate input
-        if type_.upper() == "BOND" and coupon_rate is None:
+        # If bond must have coupon_rate input and inflation in first year
+        if type_.upper() == "BOND" and (coupon_rate is None or inflation_first_year is None):
             raise HTTPException(status_code=400, detail=f"coupon_rate is required for BOND type \n check input file {file.filename}")
         if type_.upper() != "BOND":
             coupon_rate = None
+            inflation_first_year = None
 
         transaction_date = datetime.strptime(date, "%d.%m.%Y %H:%M")
         start_of_day = datetime(transaction_date.year, transaction_date.month, transaction_date.day)
@@ -51,6 +54,7 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
             Asset.currency == currency,
             Asset.type_ == type_,
             Asset.coupon_rate == coupon_rate,
+            Asset.inflation_first_year == inflation_first_year,
             Asset.date >= start_of_day,
             Asset.date < end_of_day
         ).first()
@@ -67,14 +71,15 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
                 transaction_price=transaction_price,
                 currency=currency,
                 type_=type_,
-                coupon_rate=coupon_rate)
+                coupon_rate=coupon_rate,
+                inflation_first_year=inflation_first_year)
             db.add(asset)
     db.commit()
     return {"status": "success", "message": f"{len(df)} assets uploaded"}
 
 
 @router.post("/assets/add")
-def add_asset(isin: str, name: str, amount: float, date: str, transaction_price: float, currency: str, type_: str, coupon_rate: Optional[float] = None, db: Session = Depends(get_db)):
+def add_asset(isin: str, name: str, amount: float, date: str, transaction_price: float, currency: str, type_: str, coupon_rate: Optional[float] = None, inflation_first_year: Optional[float] = None, db: Session = Depends(get_db)):
     """
     Add a single asset to the database manually.
     """
@@ -82,11 +87,12 @@ def add_asset(isin: str, name: str, amount: float, date: str, transaction_price:
         transaction_date = datetime.strptime(date, "%d.%m.%Y %H:%M")
     except ValueError:
         raise HTTPException(status_code=400, detail="Date must be in format DD.MM.YYYY HH:MM")
-    # If bond must have coupon_rate input
-    if type_.upper() == "BOND" and coupon_rate is None:
+    # If bond must have coupon_rate input and inflation in first year
+    if type_.upper() == "BOND" and (coupon_rate is None or inflation_first_year is None):
         raise HTTPException(status_code=400, detail="coupon_rate is required for BOND type")
     if type_.upper() != "BOND":
         coupon_rate = None
+        inflation_first_year = None
 
     start_of_day = datetime(transaction_date.year, transaction_date.month, transaction_date.day)
     end_of_day = start_of_day + timedelta(days=1)
@@ -98,6 +104,7 @@ def add_asset(isin: str, name: str, amount: float, date: str, transaction_price:
         Asset.type_ == type_,
         Asset.currency == currency,
         Asset.coupon_rate == coupon_rate,
+        Asset.inflation_first_year == inflation_first_year,
         Asset.date >= start_of_day,
         Asset.date < end_of_day
     ).first()
@@ -114,7 +121,8 @@ def add_asset(isin: str, name: str, amount: float, date: str, transaction_price:
             transaction_price=transaction_price,
             currency=currency,
             type_=type_,
-            coupon_rate=coupon_rate
+            coupon_rate=coupon_rate,
+            inflation_first_year=inflation_first_year
         )
         db.add(asset)
 
@@ -137,7 +145,8 @@ def list_assets(db: Session = Depends(get_db)):
             "transaction_price": float(a.transaction_price) if a.transaction_price is not None and pd.notna(a.transaction_price) else 0,
             "currency": a.currency,
             "type": a.type_,
-            "coupon_rate": float(a.coupon_rate) if a.coupon_rate is not None and pd.notna(a.coupon_rate) else None
+            "coupon_rate": float(a.coupon_rate) if a.coupon_rate is not None and pd.notna(a.coupon_rate) else None,
+            "inflation_first_year": float(a.inflation_first_year) if a.inflation_first_year is not None and pd.notna(a.inflation_first_year) else None
         })
     
     return result
@@ -154,31 +163,47 @@ def assets_choices(db: Session = Depends(get_db)):
             unique_assets[a.isin] = a.name if hasattr(a, "name") else a.isin
     return [{"isin": isin, "name": name} for isin, name in unique_assets.items()]
 
-# @router.post("/assets/value/calc")
-# def calculate_portfolio_value(isins: List[str], db: Session = Depends(get_db)):
-#     """
-#     Calculate total value of selected assets.
-#     """
-#     if not isins:
-#         raise HTTPException(status_code=400, detail="No ISINs provided")
+@router.post("/asset/calc_current_value")
+def calculate_asset_value(isin: str, date: str, type: str, db: Session = Depends(get_db)):
+    """
+    Calculate value of selected asset.
+    """
+    if not isin or not date:
+        raise HTTPException(status_code=400, detail="No ISINs or date provided")
 
-#     assets = db.query(Asset).filter(Asset.isin.in_([isin.upper() for isin in isins])).all()
+    try:
+        date_obj = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Date format should be YYYY-MM-DD")
+
+    start_of_day = datetime.combine(date_obj, datetime.min.time())
+    end_of_day = start_of_day + timedelta(days=1)
+
+    asset = db.query(Asset).filter(
+        Asset.isin == isin.upper(),
+        Asset.type_ == type.upper(),
+        Asset.date >= start_of_day,
+        Asset.date < end_of_day
+    ).first()
+
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found for given ISIN and date")
+
+    result = []
+
+    try:
+        if asset.type_.upper() == "BOND":
+            value = calculate_value_of_bond(asset=asset)
+        else:
+            value = asset.transaction_price if asset.transaction_price else 0
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error calculating value for {asset.isin}: {str(e)}")
     
-#     if not assets:
-#         raise HTTPException(status_code=404, detail="No assets found for provided ISINs")
-
-#     total_value = 0
-#     result = []
-
-#     for a in assets:
-#         value = (a.transaction_price if a.transaction_price else 0)
-#         total_value += value
-#         result.append({
-#             "isin": a.isin,
-#             "name": getattr(a, "name", a.isin),
-#             "amount": a.amount,
-#             "value_before": a.transaction_price,
-#             "value_now": value
-#         })
-    
-#     return {"total_value": total_value, "assets": result}
+    result.append({
+            "isin": asset.isin,
+            "name": getattr(asset, "name", asset.isin),
+            "amount": asset.amount,
+            "value_before": asset.transaction_price,
+            "value_now": value
+        })
+    return result

@@ -12,3 +12,4 @@ class Asset(Base):
     currency = Column(String)
     type_ = Column(String)
     coupon_rate = Column(Float)
+    inflation_first_year = Column(Float)
