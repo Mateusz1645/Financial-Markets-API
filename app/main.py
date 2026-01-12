@@ -1,13 +1,18 @@
 from fastapi import FastAPI
-from db import engine, Base
-from routes import portfolio
+from db import engine, Base, get_db
+from routes import portfolio, inflation
 from contextlib import asynccontextmanager
+from sqlalchemy.orm import Session
+from services.api_requests import load_inflation_from_custom_csv
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    yield
 
+    db: Session = next(get_db())
+    load_inflation_from_custom_csv(db, "data/inflation_pl.csv")
+
+    yield
 
 app = FastAPI(
     title="Portfolio API",
@@ -15,3 +20,4 @@ app = FastAPI(
 )
 
 app.include_router(portfolio.router)
+app.include_router(inflation.router)

@@ -226,7 +226,7 @@ def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, 
 
     try:
         if asset.type_.upper() == "BOND":
-            value = calculate_value_of_bond(asset=asset)
+            value = calculate_value_of_bond(asset=asset, db=db)
         else:
             value = asset.transaction_price or 0
     except Exception as e:
@@ -236,6 +236,7 @@ def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, 
         "id": asset.id,
         "isin": asset.isin,
         "name": asset.name,
+        "date": asset.date,
         "amount": asset.amount,
         "value_before": asset.transaction_price,
         "value_now": value

@@ -13,3 +13,10 @@ class Asset(Base):
     type_ = Column(String)
     coupon_rate = Column(Float)
     inflation_first_year = Column(Float)
+
+class Inflation(Base):
+    __tablename__ = "inflation"
+    id = Column(Integer, primary_key=True, index=True)
+    year = Column(Integer, index=True)
+    month = Column(Integer, index=True)
+    value = Column(Float)

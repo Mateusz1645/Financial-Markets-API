@@ -1,7 +1,8 @@
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 from models import Asset
 import datetime
-from services.api_requests import get_inflation_for_month
+from services.api_requests import get_inflation
 from requests.exceptions import HTTPError
 
 def value_coi(inflation: float, margin: float, days: float, value: int = 100, tax: float = 0.19) -> float:
@@ -14,7 +15,7 @@ def value_edo(inflation: float, margin: float, days: float, value: int = 100) ->
     interest = value * rate * days / 365.25
     return interest
 
-def calculate_value_of_bond(asset: Asset):
+def calculate_value_of_bond(asset: Asset , db: Session):
 
     if asset.type_.upper() != "BOND" or asset.coupon_rate is None or asset.inflation_first_year is None:
         raise HTTPException(status_code=400, detail=f"Wrong asset type or wront coupont_rate, inflation in first year choose to calculate current value of bond isin: {asset.isin}, name: {asset.name}, date:{asset.date}.")
@@ -48,7 +49,7 @@ def calculate_value_of_bond(asset: Asset):
         # COI after firsty year without last
         current_date = date_start + datetime.timedelta(days=365.25)
         while current_date + datetime.timedelta(days=365.25) <= today:
-            inflation = get_inflation_for_month(current_date.month, current_date.year)
+            inflation = get_inflation(db, current_date.month, current_date.year)
             value += value_coi(
                 inflation=inflation,
                 margin=asset.coupon_rate,
@@ -64,7 +65,7 @@ def calculate_value_of_bond(asset: Asset):
             inflation = None
             while inflation is None:
                 try:
-                    inflation = get_inflation_for_month(month, year)
+                    inflation = get_inflation(db, current_date.month, current_date.year)
                 except (HTTPError, ValueError):
                     month -= 1
                     if month == 0:
@@ -101,7 +102,7 @@ def calculate_value_of_bond(asset: Asset):
         # EDO after firsty year without last
         current_date = date_start + datetime.timedelta(days=365.25)
         while current_date + datetime.timedelta(days=365.25) <= today:
-            inflation = get_inflation_for_month(current_date.month, current_date.year)
+            inflation = get_inflation(db, current_date.month, current_date.year)
             value += value_edo(
                 inflation=inflation,
                 margin=asset.coupon_rate,
@@ -117,7 +118,7 @@ def calculate_value_of_bond(asset: Asset):
             inflation = None
             while inflation is None:
                 try:
-                    inflation = get_inflation_for_month(month, year)
+                    inflation = get_inflation(db, current_date.month, current_date.year)
                 except (HTTPError, ValueError):
                     month -= 1
                     if month == 0:
