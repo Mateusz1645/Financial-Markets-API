@@ -139,6 +139,19 @@ def add_asset(isin: str, name: str, amount: float, date: str, transaction_price:
     db.commit()
     return {"status": "success", "message": "Asset added or updated"}
 
+@router.delete("/detele")
+def delete_asset(asset_id: int, db: Session = Depends(get_db)):
+    """
+    Delete a single asset from database manually.
+    """
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+    db.delete(asset)
+    db.commit()
+    return {"status": "success", "message": f"Asset with id {asset_id} deleted"}
+
 @router.get("/list")
 def list_assets(db: Session = Depends(get_db)):
     """
@@ -148,6 +161,7 @@ def list_assets(db: Session = Depends(get_db)):
     result = []
     for a in assets:
         result.append({
+            "id": a.id,
             "symbol": a.isin,
             "name": a.name,
             "date": a.date.isoformat() if a.date else None,
@@ -174,46 +188,55 @@ def assets_choices(db: Session = Depends(get_db)):
     return [{"isin": isin, "name": name} for isin, name in unique_assets.items()]
 
 @router.post("/calc_current_value")
-def calculate_asset_value(isin: str, date: str, type: str, db: Session = Depends(get_db)):
+def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, date: Optional[str] = None, db: Session = Depends(get_db)):
     """
     Calculate value of selected asset.
+
+    Possible search by:
+    - `id`
+    - `isin` and `date`
     """
-    if not isin or not date:
-        raise HTTPException(status_code=400, detail="No ISINs or date provided")
 
-    try:
-        date_obj = parse_date(date).date()
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Date format should be YYYY-MM-DD")
+    if id:
+        asset = db.query(Asset).filter(Asset.id == id).first()
+        if not asset:
+            raise HTTPException(status_code=404, detail=f"Asset with id {id} not found")
+    elif isin and date:
+        try:
+            date_obj = parse_date(date).date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Date format should be YYYY-MM-DD")
+        
+        start_of_day = datetime.combine(date_obj, datetime.min.time())
+        end_of_day = start_of_day + timedelta(days=1)
 
-    start_of_day = datetime.combine(date_obj, datetime.min.time())
-    end_of_day = start_of_day + timedelta(days=1)
+        asset = db.query(Asset).filter(
+            Asset.isin == isin.upper(),
+            Asset.date >= start_of_day,
+            Asset.date < end_of_day
+        ).first()
 
-    asset = db.query(Asset).filter(
-        Asset.isin == isin.upper(),
-        Asset.type_ == type.upper(),
-        Asset.date >= start_of_day,
-        Asset.date < end_of_day
-    ).first()
-
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found for given ISIN and date")
-
-    result = []
+        if not asset:
+            raise HTTPException(status_code=404, detail=f"Asset {isin} not found for given date {date}")
+    else:
+        raise HTTPException(
+            status_code=400, 
+            detail="Provide either `id` or both `isin` and `date`"
+        )
 
     try:
         if asset.type_.upper() == "BOND":
             value = calculate_value_of_bond(asset=asset)
         else:
-            value = asset.transaction_price if asset.transaction_price else 0
+            value = asset.transaction_price or 0
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error calculating value for {asset.isin}: {str(e)}")
-    
-    result.append({
-            "isin": asset.isin,
-            "name": getattr(asset, "name", asset.isin),
-            "amount": asset.amount,
-            "value_before": asset.transaction_price,
-            "value_now": value
-        })
-    return result
+
+    return [{
+        "id": asset.id,
+        "isin": asset.isin,
+        "name": asset.name,
+        "amount": asset.amount,
+        "value_before": asset.transaction_price,
+        "value_now": value
+    }]
