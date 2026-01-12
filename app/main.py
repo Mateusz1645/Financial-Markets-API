@@ -3,7 +3,7 @@ from db import engine, Base, get_db
 from routes import portfolio, inflation
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
-from services.api_requests import load_inflation_from_custom_csv
+from services.inflation_service import load_inflation_from_custom_csv
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

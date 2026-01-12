@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from db import get_db
 from models import Asset
 from datetime import datetime, timedelta

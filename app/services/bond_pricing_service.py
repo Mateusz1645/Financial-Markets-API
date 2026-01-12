@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from models import Asset
 import datetime
-from services.api_requests import get_inflation
+from services.inflation_service import get_inflation
 from requests.exceptions import HTTPError
 
 def value_coi(inflation: float, margin: float, days: float, value: int = 100, tax: float = 0.19) -> float:
@@ -90,7 +90,7 @@ def calculate_value_of_bond(asset: Asset , db: Session):
                 value=value,
                 days=days_since_purchase
             )
-            return value
+            return (value - ((value - asset.transaction_price) * 0.19))
 
         value += value_edo(
             inflation=asset.inflation_first_year,
@@ -131,7 +131,7 @@ def calculate_value_of_bond(asset: Asset , db: Session):
                 days=remaining_days
             )
 
-        value = value - (value - asset.transaction_price) * 0.81
+        value = (value - ((value - asset.transaction_price) * 0.19))
 
         return value
 
