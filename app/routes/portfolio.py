@@ -156,7 +156,7 @@ def list_assets(db: Session = Depends(get_db)):
     """
     List all assets in the database.
     """
-    assets = db.query(Asset).all()
+    assets = db.query(Asset).limit(300).all()
     result = []
     for a in assets:
         result.append({
