@@ -139,6 +139,19 @@ def add_asset(isin: str, name: str, amount: float, date: str, transaction_price:
     db.commit()
     return {"status": "success", "message": "Asset added or updated"}
 
+@router.delete("/detele")
+def delete_asset(asset_id: int, db: Session = Depends(get_db)):
+    """
+    Delete a single asset from database manually.
+    """
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+    db.delete(asset)
+    db.commit()
+    return {"status": "success", "message": f"Asset with id {asset_id} deleted"}
+
 @router.get("/list")
 def list_assets(db: Session = Depends(get_db)):
     """
@@ -148,6 +161,7 @@ def list_assets(db: Session = Depends(get_db)):
     result = []
     for a in assets:
         result.append({
+            "id": a.id,
             "symbol": a.isin,
             "name": a.name,
             "date": a.date.isoformat() if a.date else None,
@@ -210,6 +224,7 @@ def calculate_asset_value(isin: str, date: str, type: str, db: Session = Depends
         raise HTTPException(status_code=500, detail=f"Error calculating value for {asset.isin}: {str(e)}")
     
     result.append({
+            "id": asset.id,
             "isin": asset.isin,
             "name": getattr(asset, "name", asset.isin),
             "amount": asset.amount,
