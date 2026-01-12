@@ -179,12 +179,8 @@ def assets_choices(db: Session = Depends(get_db)):
     """
     List available assets (ISIN + NAME) for selection.
     """
-    assets = db.query(Asset).all()
-    unique_assets = {}
-    for a in assets:
-        if a.isin not in unique_assets:
-            unique_assets[a.isin] = a.name if hasattr(a, "name") else a.isin
-    return [{"isin": isin, "name": name} for isin, name in unique_assets.items()]
+    results = db.query(Asset.isin, Asset.name).distinct(Asset.isin).all()
+    return [{"isin": isin, "name": name} for isin, name in results]
 
 @router.post("/calc_current_value")
 def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, date: Optional[str] = None, db: Session = Depends(get_db)):
