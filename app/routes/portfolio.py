@@ -124,7 +124,7 @@ def add_asset(isin: str, name: str, amount: float, date: str, transaction_price:
     else:
         asset = Asset(
             isin=isin.upper(),
-            name = name,
+            name=name,
             amount=amount,
             date=transaction_date,
             transaction_price=transaction_price,
