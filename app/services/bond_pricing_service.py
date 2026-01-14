@@ -8,11 +8,15 @@ from requests.exceptions import HTTPError
 from utils.date_utils import parse_date
 
 def value_coi(inflation: float, margin: float, days: float, value: int = 100, tax: float = 0.19) -> float:
+    if inflation < 0:
+        inflation = 0
     rate = inflation + margin
     interest = value * rate * days / 365.25
     return interest * (1 - tax)
 
 def value_edo(inflation: float, margin: float, days: float, value: int = 100) -> float:
+    if inflation < 0:
+        inflation = 0
     rate = inflation + margin
     interest = value * rate * days / 365.25
     return interest

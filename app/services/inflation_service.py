@@ -50,7 +50,7 @@ def get_inflation_for_month(month, year):
             if df.empty:
                 return None
             time.sleep(1) # to not overloard gus api
-            return df['wartosc'].iloc[0] - 100
+            return round((df['wartosc'].iloc[0] - 100) / 100, 4)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error from api-sdp.stat.gov: {e, response.status_code}")
 
