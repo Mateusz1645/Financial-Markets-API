@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from services.bond_pricing_service import calculate_value_of_bond
 from utils.date_utils import parse_date
+from utils.bond_utils import validate_bond_fields
 import pandas as pd
 
 router = APIRouter(
@@ -41,12 +42,12 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
         coupon_rate = row.get("COUPON RATE (%)", None)
         inflation_first_year = row.get("INFLATION_FIRST_YEAR", None)
 
-        # If bond must have coupon_rate input and inflation in first year
-        if type_.upper() == "BOND" and (coupon_rate is None or inflation_first_year is None):
-            raise HTTPException(status_code=400, detail=f"coupon_rate is required for BOND type \n check input file {file.filename}")
-        if type_.upper() != "BOND":
-            coupon_rate = None
-            inflation_first_year = None
+        coupon_rate, inflation_first_year = validate_bond_fields(
+            type_=type_,
+            isin=isin,
+            coupon_rate=coupon_rate,
+            inflation_first_year=inflation_first_year
+        )
 
         transaction_date = parse_date(date)
         start_of_day = datetime(transaction_date.year, transaction_date.month, transaction_date.day)
@@ -94,12 +95,13 @@ def add_asset(isin: str, name: str, amount: float, date: str, transaction_price:
         transaction_date = parse_date(date)
     except ValueError:
         raise HTTPException(status_code=400, detail="Date must be in format DD.MM.YYYY HH:MM")
-    # If bond must have coupon_rate input and inflation in first year
-    if type_.upper() == "BOND" and (coupon_rate is None or inflation_first_year is None):
-        raise HTTPException(status_code=400, detail="coupon_rate is required for BOND type")
-    if type_.upper() != "BOND":
-        coupon_rate = None
-        inflation_first_year = None
+    
+    coupon_rate, inflation_first_year = validate_bond_fields(
+            type_=type_,
+            isin=isin,
+            coupon_rate=coupon_rate,
+            inflation_first_year=inflation_first_year
+        )
 
     start_of_day = datetime(transaction_date.year, transaction_date.month, transaction_date.day)
     end_of_day = start_of_day + timedelta(days=1)
