@@ -183,9 +183,9 @@ def assets_choices(db: Session = Depends(get_db)):
     return [{"isin": isin, "name": name} for isin, name in results]
 
 @router.post("/calc_current_value")
-def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, date: Optional[str] = None, db: Session = Depends(get_db)):
+def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, date: Optional[str] = None, date_to_calculate: Optional[str] = "today", db: Session = Depends(get_db)):
     """
-    Calculate value of selected asset.
+    Calculate value of selected asset for date=date_to_calculate if not entered date=today.
 
     Possible search by:
     - `id`
@@ -221,7 +221,7 @@ def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, 
 
     try:
         if asset.type_.upper() == "BOND":
-            value = calculate_value_of_bond(asset=asset, db=db)
+            value = calculate_value_of_bond(asset=asset, db=db, date=date_to_calculate)
         else:
             value = asset.transaction_price or 0
     except Exception as e:
