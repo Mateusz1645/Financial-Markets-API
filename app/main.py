@@ -10,7 +10,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
 
     db: Session = next(get_db())
-    load_inflation_from_custom_csv(db, "data/inflation_pl.csv")
+    load_inflation_from_custom_csv(db, "data/inflation.csv")
 
     yield
 
