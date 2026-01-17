@@ -5,6 +5,8 @@ from models import Asset
 from datetime import datetime, timedelta
 from typing import Optional
 from services.bond_pricing_service import calculate_value_of_bond
+from services.market_data_services import get_current_price_from_yfinance
+from routes.equities import get_symbol_from_isin
 from utils.date_utils import parse_date
 from utils.bond_utils import validate_bond_fields
 import pandas as pd
@@ -224,6 +226,12 @@ def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, 
     try:
         if asset.type_.upper() == "BOND":
             value = calculate_value_of_bond(asset=asset, db=db, date=date_to_calculate)
+        elif asset.type_.upper() == "EQUITIES":
+            symbols = get_symbol_from_isin(asset.isin, db=db)
+            if len(symbols) == 1:
+                value = get_current_price_from_yfinance(symbols[0])
+            else: 
+                HTTPException(status_code=500, detail=f"More symbols than one or no symbol for {asset.isin}: {symbols}")
         else:
             value = asset.transaction_price or 0
     except Exception as e:
