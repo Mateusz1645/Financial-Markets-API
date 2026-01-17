@@ -1,4 +1,5 @@
 import financedatabase as fd
+from fastapi import HTTPException
 import pandas as pd
 from sqlalchemy.orm import Session
 from models import Equity

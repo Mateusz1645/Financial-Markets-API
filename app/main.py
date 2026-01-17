@@ -24,5 +24,5 @@ app = FastAPI(
 )
 
 app.include_router(portfolio.router)
-app.include_router(inflation.router)
 app.include_router(equities.router)
+app.include_router(inflation.router)
