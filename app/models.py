@@ -10,6 +10,7 @@ class Asset(Base):
     amount = Column(Float)
     transaction_price = Column(Float)
     currency = Column(String)
+    currency_transaction = Column(String)
     type_ = Column(String)
     coupon_rate = Column(Float)
     inflation_first_year = Column(Float)
@@ -51,3 +52,11 @@ class Equity(Base):
     zipcode = Column(String)
     # web
     website = Column(String)
+
+class Forex(Base):
+    __tablename__ = "forex"
+    id = Column(Integer, primary_key=True, index=True)
+    first_currency = Column(String, index=True)
+    second_currency = Column(String, index=True)
+    value = Column(Float, index=True)
+    date = Column(DateTime, index=True)
