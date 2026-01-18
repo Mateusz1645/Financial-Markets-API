@@ -5,7 +5,7 @@ from models import Asset
 from datetime import datetime, timedelta
 from typing import Optional
 from services.bond_pricing_service import calculate_value_of_bond
-from services.market_data_services import get_current_price_from_yfinance
+from services.market_data_services import get_current_price_from_yfinance, get_forex_rate
 from routes.equities import get_symbol_from_isin
 from utils.date_utils import parse_date
 from utils.bond_utils import validate_bond_fields
@@ -40,6 +40,7 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
         date = row["DATE"]
         transaction_price = row["TRANSACTION PRICE"]
         currency = row.get("CURRENCY", None)
+        currency_transaction = row.get("CURRENCY TRANSACTION")
         type_ = row.get("TYPE", None)
         coupon_rate = row.get("COUPON RATE (%)", None)
         inflation_first_year = row.get("INFLATION_FIRST_YEAR", None)
@@ -62,6 +63,7 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
             Asset.isin == isin.upper(),
             Asset.name == name,
             Asset.currency == currency,
+            Asset.currency_transaction == currency_transaction,
             Asset.type_ == type_,
             Asset.coupon_rate == coupon_rate,
             Asset.inflation_first_year == inflation_first_year,
@@ -80,6 +82,7 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
                 amount=amount,
                 transaction_price=transaction_price,
                 currency=currency,
+                currency_transaction=currency_transaction,
                 type_=type_,
                 coupon_rate=coupon_rate,
                 inflation_first_year=inflation_first_year)
@@ -89,7 +92,7 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
 
 
 @router.post("/add")
-def add_asset(isin: str, name: str, amount: float, date: str, transaction_price: float, currency: str, type_: str, coupon_rate: Optional[float] = None, inflation_first_year: Optional[float] = None, db: Session = Depends(get_db)):
+def add_asset(isin: str, name: str, amount: float, date: str, transaction_price: float, currency: str, currency_transaction: str, type_: str, coupon_rate: Optional[float] = None, inflation_first_year: Optional[float] = None, db: Session = Depends(get_db)):
     """
     Add a single asset to the database manually.
     """
@@ -116,6 +119,7 @@ def add_asset(isin: str, name: str, amount: float, date: str, transaction_price:
         Asset.name == name,
         Asset.type_ == type_,
         Asset.currency == currency,
+        Asset.currency_transaction == currency_transaction,
         Asset.coupon_rate == coupon_rate,
         Asset.inflation_first_year == inflation_first_year,
         Asset.date >= start_of_day,
@@ -133,6 +137,7 @@ def add_asset(isin: str, name: str, amount: float, date: str, transaction_price:
             date=transaction_date,
             transaction_price=transaction_price,
             currency=currency,
+            currency_transaction=currency_transaction,
             type_=type_,
             coupon_rate=coupon_rate,
             inflation_first_year=inflation_first_year
@@ -171,6 +176,7 @@ def list_assets(db: Session = Depends(get_db)):
             "amount": float(a.amount) if a.amount is not None and pd.notna(a.amount) else 0,
             "transaction_price": float(a.transaction_price) if a.transaction_price is not None and pd.notna(a.transaction_price) else 0,
             "currency": a.currency,
+            "currency_transaction": a.currency_transaction,
             "type": a.type_,
             "coupon_rate": float(a.coupon_rate)if a.coupon_rate is not None and pd.notna(a.coupon_rate) else None,
             "inflation_first_year": float(a.inflation_first_year) if a.inflation_first_year is not None and pd.notna(a.inflation_first_year) else None
@@ -238,16 +244,18 @@ def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, 
     try:
         if asset.type_.upper() == "BOND":
             value = calculate_value_of_bond(asset=asset, db=db, date=date_to_calculate)
+            currency = None
         elif asset.type_.upper() == "EQUITIES":
             symbols = get_symbol_from_isin(asset.isin, db=db)
             if len(symbols) == 1:
                 price_data = get_current_price_from_yfinance(symbols[0], target_date=date_to_calculate)
                 value_per_unit = price_data["price"]
                 currency = price_data["currency"]
-                if currency is not asset.currency:
+                if str(currency) != str(asset.currency):
                     raise HTTPException(status_code=500, detail=f"There are different currencies in equities for: {asset.isin, asset.id}. Input currency = {asset.currency}, yfinance currency = {currency}")
-                if currency == "USD": # need fix and add to db currency curent
-                    value = value_per_unit * asset.amount * 3.64
+
+                forex_rate = get_forex_rate(db, currency, asset.currency_transaction, calc_date)
+                value = value_per_unit * asset.amount * forex_rate
             else: 
                 HTTPException(status_code=500, detail=f"More symbols than one or no symbol for {asset.isin}: {symbols}")
         else:
@@ -261,9 +269,10 @@ def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, 
         "name": asset.name,
         "date_buy": asset.date,
         "date_calc": date_to_calculate,
-        "currency": asset.currency,
+        "currency": asset.currency_transaction,
         "amount": asset.amount,
         "value_before": asset.transaction_price,
         "value": value,
         "currency_yfinance": currency,
+        "value_in_currency_per_unit": value_per_unit,
     }]
