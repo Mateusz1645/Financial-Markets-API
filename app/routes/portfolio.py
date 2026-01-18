@@ -223,13 +223,31 @@ def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, 
             detail="Provide either `id` or both `isin` and `date`"
         )
 
+    if date_to_calculate == "today":
+        calc_date = datetime.utcnow().date()
+    else:
+        try:
+            calc_date = parse_date(date_to_calculate).date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date_to_calculate format should be YYYY-MM-DD or 'today'")
+    asset_date = asset.date.date() 
+
+    if asset_date > calc_date:
+        raise HTTPException(status_code=400,  detail=( f"Cannot calculate value for {calc_date}. "f"Asset was acquired on {asset_date}."))
+    
     try:
         if asset.type_.upper() == "BOND":
             value = calculate_value_of_bond(asset=asset, db=db, date=date_to_calculate)
         elif asset.type_.upper() == "EQUITIES":
             symbols = get_symbol_from_isin(asset.isin, db=db)
             if len(symbols) == 1:
-                value = get_current_price_from_yfinance(symbols[0])
+                price_data = get_current_price_from_yfinance(symbols[0], target_date=date_to_calculate)
+                value_per_unit = price_data["price"]
+                currency = price_data["currency"]
+                if currency is not asset.currency:
+                    raise HTTPException(status_code=500, detail=f"There are different currencies in equities for: {asset.isin, asset.id}. Input currency = {asset.currency}, yfinance currency = {currency}")
+                if currency == "USD": # need fix and add to db currency curent
+                    value = value_per_unit * asset.amount * 3.64
             else: 
                 HTTPException(status_code=500, detail=f"More symbols than one or no symbol for {asset.isin}: {symbols}")
         else:
@@ -241,8 +259,11 @@ def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, 
         "id": asset.id,
         "isin": asset.isin,
         "name": asset.name,
-        "date": asset.date,
+        "date_buy": asset.date,
+        "date_calc": date_to_calculate,
+        "currency": asset.currency,
         "amount": asset.amount,
         "value_before": asset.transaction_price,
-        "value_now": value
+        "value": value,
+        "currency_yfinance": currency,
     }]

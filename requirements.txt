@@ -8,6 +8,6 @@ openpyxl==3.1.2
 python-multipart==0.0.7
 psycopg2-binary==2.9.9
 python-dotenv==1.0.1
-yfinance==0.2.36
+yfinance==1.0.0
 investpy
 financedatabase
