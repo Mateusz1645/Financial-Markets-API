@@ -147,7 +147,7 @@ def add_asset(isin: str, name: str, amount: float, date: str, transaction_price:
     db.commit()
     return {"status": "success", "message": "Asset added or updated"}
 
-@router.delete("/detele")
+@router.delete("/delete")
 def delete_asset(asset_id: int, db: Session = Depends(get_db)):
     """
     Delete a single asset from database manually.

@@ -20,6 +20,7 @@ def list_inflation(db: Session = Depends(get_db)):
         if r.value is None or math.isnan(r.value) or math.isinf(r.value):
             continue
         result.append({
+            "id": r.id,
             "year": r.year,
             "month": r.month,
             "value": r.value
@@ -77,3 +78,16 @@ def add_inflation(month: int, year: int, value: Optional[float] = None, db: Sess
         "year": year,
         "value": value
     }
+
+@router.delete("/delete")
+def delete_inflatiom(inflation_id: int, db: Session = Depends(get_db)):
+    """
+    Delete a single asset from database manually.
+    """
+    inflation = db.query(Inflation).filter(Inflation.id == inflation_id).first()
+    if not inflation:
+        raise HTTPException(status_code=404, detail="Inflation not found")
+    
+    db.delete(inflation)
+    db.commit()
+    return {"status": "success", "message": f"Inflation with id {inflation_id} deleted year: {inflation.year}, month: {inflation.month}, value: {inflation.value}"}
