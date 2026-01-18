@@ -80,7 +80,7 @@ def add_inflation(month: int, year: int, value: Optional[float] = None, db: Sess
     }
 
 @router.delete("/delete")
-def delete_inflatiom(inflation_id: int, db: Session = Depends(get_db)):
+def delete_inflation(inflation_id: int, db: Session = Depends(get_db)):
     """
     Delete a single asset from database manually.
     """
