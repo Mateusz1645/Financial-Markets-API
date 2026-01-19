@@ -9,8 +9,8 @@ def validate_bond_fields(type_: str, isin: str, coupon_rate: Optional[float], in
 
     bond_type = isin[:3].upper()
 
-    # COI / EDO
-    if bond_type in ("COI", "EDO"):
+    # COI / EDO / ROS / ROD
+    if bond_type in ("COI", "EDO", "ROS", "ROD"):
         if coupon_rate is None or inflation_first_year is None:
             raise HTTPException(
                 status_code=400,
