@@ -19,7 +19,7 @@ def test_add_asset(client):
 def test_list_assets(client):
     response = client.get("/assets/list")
 
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}. Response: {response.text}"
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}.  Response: {response.text}"
     assert isinstance(response.json(), list), f"Expected list, got {type(response.json())}: {response.json()}"
 
     
