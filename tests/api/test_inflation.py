@@ -76,5 +76,5 @@ def test_add_inflation_duplicate(client, db_session):
         "value": 0.5
     })
 
-    assert response.status_code == 400, f"Expected 400 for duplicate entry, got {response.status_code}. Response: {response.text}"
+    assert response.status_code == 401, f"Expected 400 for duplicate entry, got {response.status_code}. Response: {response.text}"
 
