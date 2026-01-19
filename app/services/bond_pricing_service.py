@@ -6,6 +6,14 @@ from dateutil.relativedelta import relativedelta
 from services.inflation_service import get_inflation
 from requests.exceptions import HTTPError
 from utils.date_utils import parse_date
+import math
+
+def get_ots_days(date_start, valuation_date):
+    end_of_period = date_start + relativedelta(months=3)
+    if valuation_date < end_of_period:
+        return (valuation_date - date_start).days
+    else:
+        return (end_of_period - date_start).days
 
 def value_coi(inflation: float, margin: float, days: float, value: int = 100, tax: float = 0.19) -> float:
     if inflation < 0:
@@ -21,12 +29,19 @@ def value_edo(inflation: float, margin: float, days: float, value: int = 100) ->
     interest = value * rate * days / 365.25
     return interest
 
-def get_ots_days(date_start, valuation_date):
-    end_of_period = date_start + relativedelta(months=3)
-    if valuation_date < end_of_period:
-        return (valuation_date - date_start).days
-    else:
-        return (end_of_period - date_start).days
+def value_ros(inflation: float, margin: float, days: float, value: int = 100) -> float:
+    if inflation < 0:
+        inflation = 0
+    rate = inflation + margin
+    interest = value * rate * days / 365.25
+    return interest
+
+def value_rod(inflation: float, margin: float, days: float, value: int = 100) -> float:
+    if inflation < 0:
+        inflation = 0
+    rate = inflation + margin
+    interest = value * rate * days / 365.25
+    return interest
     
 def value_ots(margin: float, days: float, value: int = 100, tax: float = 0.19) -> float:
     interest = value * margin * days / 365.25
@@ -46,7 +61,7 @@ def calculate_value_of_bond(asset: Asset , db: Session, date: str="today"):
             detail=f"Wrong asset type for calculating bond value: {asset.isin}, {asset.name}, {asset.date}"
         )
 
-    if type_of_bond in ["COI", "EDO"] and (asset.coupon_rate is None or asset.inflation_first_year is None):
+    if type_of_bond in ["COI", "EDO", "ROS", "ROD"] and (asset.coupon_rate is None or asset.inflation_first_year is None):
         raise HTTPException(
             status_code=400,
             detail=f"coupon_rate and inflation_first_year are required for {type_of_bond} bond {asset.isin}, {asset.name}"
@@ -74,7 +89,11 @@ def calculate_value_of_bond(asset: Asset , db: Session, date: str="today"):
         max_years = 3
     elif type_of_bond == "EDO":
         max_years = 10
-    
+    elif type_of_bond == "ROS":
+        max_years = 6
+    elif type_of_bond == "ROD":
+        max_years = 12
+
     if max_years is not None:
         max_end_date = date_start + relativedelta(years=max_years)
         if valuation_date > max_end_date:
@@ -117,11 +136,23 @@ def calculate_value_of_bond(asset: Asset , db: Session, date: str="today"):
         if remaining_days > 0:
             tmp_date = current_date
             inflation = None
-            while inflation is None:
+            tries = 0
+            while (inflation is None or not math.isfinite(inflation)) and tries < 12:
                 try:
                     inflation = get_inflation(db, tmp_date.month, tmp_date.year)
                 except (HTTPError, ValueError):
+                    inflation = None
+
+                if inflation is None or not math.isfinite(inflation):
                     tmp_date -= relativedelta(months=1)
+                    tries += 1
+
+            if inflation is None or not math.isfinite(inflation):
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Inflation data missing for {current_date} and previous 12 months"
+                )
+            
             value += value_coi(
                 inflation=inflation,
                 margin=asset.coupon_rate,
@@ -165,11 +196,23 @@ def calculate_value_of_bond(asset: Asset , db: Session, date: str="today"):
         if remaining_days > 0:
             tmp_date = current_date
             inflation = None
-            while inflation is None:
+            tries = 0
+            while (inflation is None or not math.isfinite(inflation)) and tries < 12:
                 try:
                     inflation = get_inflation(db, tmp_date.month, tmp_date.year)
                 except (HTTPError, ValueError):
-                        tmp_date -= relativedelta(months=1)
+                    inflation = None
+
+                if inflation is None or not math.isfinite(inflation):
+                    tmp_date -= relativedelta(months=1)
+                    tries += 1
+
+            if inflation is None or not math.isfinite(inflation):
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Inflation data missing for {current_date} and previous 12 months"
+                )
+            
             value += value_edo(
                 inflation=inflation,
                 margin=asset.coupon_rate,
@@ -181,6 +224,132 @@ def calculate_value_of_bond(asset: Asset , db: Session, date: str="today"):
 
         return value
     
+    elif type_of_bond == 'ROS':
+        # ROS term shorter than one year
+        if days_since_purchase <= 365.25: 
+            value += value_ros(
+                inflation=asset.inflation_first_year,
+                margin=asset.coupon_rate,
+                value=value,
+                days=days_since_purchase
+            )
+            return (value - ((value - asset.transaction_price) * 0.19))
+
+        value += value_ros(
+            inflation=asset.inflation_first_year,
+            margin=asset.coupon_rate,
+            value=value,
+            days=365.25
+        )
+
+        # ROS after firsty year without last
+        current_date = date_start + relativedelta(years=1)
+        while current_date + relativedelta(years=1) <= valuation_date:
+            inflation = get_inflation(db, current_date.month, current_date.year)
+            value += value_ros(
+                inflation=inflation,
+                margin=asset.coupon_rate,
+                value=value,
+                days=365.25
+            )
+            current_date += relativedelta(years=1)
+
+        # ROS last year
+        remaining_days = (valuation_date - current_date).days
+        if remaining_days > 0:
+            tmp_date = current_date
+            inflation = None
+            tries = 0
+            while (inflation is None or not math.isfinite(inflation)) and tries < 12:
+                try:
+                    inflation = get_inflation(db, tmp_date.month, tmp_date.year)
+                except (HTTPError, ValueError):
+                    inflation = None
+
+                if inflation is None or not math.isfinite(inflation):
+                    tmp_date -= relativedelta(months=1)
+                    tries += 1
+
+            if inflation is None or not math.isfinite(inflation):
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Inflation data missing for {current_date} and previous 12 months"
+                )
+            
+            value += value_ros(
+                inflation=inflation,
+                margin=asset.coupon_rate,
+                value=value,
+                days=remaining_days
+            )
+
+        value = (value - ((value - asset.transaction_price) * 0.19))
+
+        return value
+    
+    elif type_of_bond == 'ROD':
+        # ROD term shorter than one year
+        if days_since_purchase <= 365.25: 
+            value += value_rod(
+                inflation=asset.inflation_first_year,
+                margin=asset.coupon_rate,
+                value=value,
+                days=days_since_purchase
+            )
+            return (value - ((value - asset.transaction_price) * 0.19))
+
+        value += value_rod(
+            inflation=asset.inflation_first_year,
+            margin=asset.coupon_rate,
+            value=value,
+            days=365.25
+        )
+
+        # ROD after firsty year without last
+        current_date = date_start + relativedelta(years=1)
+        while current_date + relativedelta(years=1) <= valuation_date:
+            inflation = get_inflation(db, current_date.month, current_date.year)
+            value += value_rod(
+                inflation=inflation,
+                margin=asset.coupon_rate,
+                value=value,
+                days=365.25
+            )
+            current_date += relativedelta(years=1)
+
+        # ROD last year
+        remaining_days = (valuation_date - current_date).days
+        if remaining_days > 0:
+            tmp_date = current_date
+            inflation = None
+            tries = 0
+            while (inflation is None or not math.isfinite(inflation)) and tries < 12:
+                try:
+                    inflation = get_inflation(db, tmp_date.month, tmp_date.year)
+                except (HTTPError, ValueError):
+                    inflation = None
+
+                if inflation is None or not math.isfinite(inflation):
+                    tmp_date -= relativedelta(months=1)
+                    tries += 1
+
+            if inflation is None or not math.isfinite(inflation):
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Inflation data missing for {current_date} and previous 12 months"
+                )
+            
+            value += value_rod(
+                inflation=inflation,
+                margin=asset.coupon_rate,
+                value=value,
+                days=remaining_days
+            )
+
+        value = (value - ((value - asset.transaction_price) * 0.19))
+
+        return value
+
     elif type_of_bond == "OTS":
         # OTS only last 3 months
         days = get_ots_days(date_start, valuation_date)

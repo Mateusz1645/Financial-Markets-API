@@ -10,6 +10,7 @@ from routes.equities import get_symbol_from_isin
 from utils.date_utils import parse_date
 from utils.bond_utils import validate_bond_fields
 import pandas as pd
+from math import isfinite
 
 router = APIRouter(
     prefix="/assets",
@@ -241,10 +242,21 @@ def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, 
     if asset_date > calc_date:
         raise HTTPException(status_code=400,  detail=( f"Cannot calculate value for {calc_date}. "f"Asset was acquired on {asset_date}."))
     
+    if calc_date > datetime.utcnow().date():
+        raise HTTPException(status_code=400,  detail=( f"Cannot calculate value for {calc_date}. "f"Today is: {datetime.utcnow().date()}."))
+
     try:
         if asset.type_.upper() == "BOND":
+
             value = calculate_value_of_bond(asset=asset, db=db, date=date_to_calculate)
+
+            if not isfinite(value):
+                raise HTTPException(status_code=500, detail=f"Calculated bond value is not finite: {value}")
+            if asset.amount == 0:
+                raise HTTPException(status_code=400, detail="Asset amount cannot be 0")
+
             currency = None
+            value_per_unit = round(value / asset.amount, 4)
         elif asset.type_.upper() == "EQUITIES":
             symbols = get_symbol_from_isin(asset.isin, db=db)
             if len(symbols) == 1:
@@ -255,11 +267,13 @@ def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, 
                     raise HTTPException(status_code=500, detail=f"There are different currencies in equities for: {asset.isin, asset.id}. Input currency = {asset.currency}, yfinance currency = {currency}")
 
                 forex_rate = get_forex_rate(db, currency, asset.currency_transaction, calc_date)
-                value = value_per_unit * asset.amount * forex_rate
+                value = round(value_per_unit * asset.amount * forex_rate, 4)
             else: 
                 HTTPException(status_code=500, detail=f"More symbols than one or no symbol for {asset.isin}: {symbols}")
         else:
             value = asset.transaction_price or 0
+            value_per_unit = value
+            currency = asset.currency_transaction
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error calculating value for {asset.isin}: {str(e)}")
 
