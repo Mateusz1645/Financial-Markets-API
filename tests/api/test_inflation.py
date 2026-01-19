@@ -1,4 +1,5 @@
 import warnings
+from models import Inflation
 
 def test_inflation(client):
     response = client.get("/inflation/list")
@@ -26,3 +27,34 @@ def test_inflation(client):
                 assert value < 1, f"Row {idx}: for year {year} expected value < 1, got {value}"
         else:
             assert value <= 1200, f"Row {idx}: value > 1.5 for year {year}: {value}"
+
+def test_add_inflation(client, db_session):
+    response = client.post("/inflation/add", params={
+        "month": 1,
+        "year": 2099,
+        "value": 0.5
+    })
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["message"] == "Inflation added successfully"
+    assert data["month"] == 1
+    assert data["year"] == 2099
+    assert data["value"] == 0.5
+
+    db_record = db_session.query(Inflation).filter_by(month=1, year=2099).first()
+    assert db_record is not None
+    assert db_record.value == 0.5
+
+def test_delete_inflation(client, db_session):
+    record = Inflation(month=2, year=2099, value=0.4)
+    db_session.add(record)
+    db_session.commit()
+
+    response = client.delete("/inflation/delete", params={"inflation_id": record.id})
+    assert response.status_code == 200
+
+    db_record = db_session.query(Inflation).filter_by(id=record.id).first()
+    assert db_record is None
+
