@@ -35,17 +35,17 @@ def test_add_inflation(client, db_session):
         "value": 0.5
     })
 
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}. Response: {response.text}"
     data = response.json()
 
-    assert data["message"] == "Inflation added successfully"
-    assert data["month"] == 1
-    assert data["year"] == 2099
-    assert data["value"] == 0.5
+    assert data["message"] == "Inflation added successfully", f"Unexpected message: {data}"
+    assert data["month"] == 1, f"Expected month 1, got {data['month']}"
+    assert data["year"] == 2099, f"Expected year 2099, got {data['year']}"
+    assert data["value"] == 0.5, f"Expected value 0.5, got {data['value']}"
 
     db_record = db_session.query(Inflation).filter_by(month=1, year=2099).first()
-    assert db_record is not None
-    assert db_record.value == 0.5
+    assert db_record is not None, "Inflation record not found in DB after adding"
+    assert db_record.value == 0.5, f"Expected DB value 0.5, got {db_record.value}"
 
 def test_delete_inflation(client, db_session):
     record = Inflation(month=2, year=2099, value=0.4)
@@ -57,4 +57,24 @@ def test_delete_inflation(client, db_session):
 
     db_record = db_session.query(Inflation).filter_by(id=record.id).first()
     assert db_record is None
+
+def test_delete_inflation(client, db_session):
+    record = Inflation(month=2, year=2099, value=0.4)
+    db_session.add(record)
+    db_session.commit()
+
+    response = client.delete("/inflation/delete", params={"inflation_id": record.id})
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}. Response: {response.text}"
+
+    db_record = db_session.query(Inflation).filter_by(id=record.id).first()
+    assert db_record is None, f"Record with id {record.id} still exists in DB after delete"
+
+def test_add_inflation_duplicate(client, db_session):
+    response = client.post("/inflation/add", params={
+        "month": 1,
+        "year": 2024,
+        "value": 0.5
+    })
+
+    assert response.status_code == 400, f"Expected 400 for duplicate entry, got {response.status_code}. Response: {response.text}"
 
