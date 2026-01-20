@@ -53,7 +53,6 @@ def test_add_asset_duplicate(client, db_session):
     assert asset_in_db.amount == 20, f"Wrong amount in asset got: {asset_in_db.amount}, expected: 20"
     assert asset_in_db.transaction_price == 200, f"Wrong transaction_price in asset got: {asset_in_db.transaction_price}, expected: 200"
 
-
 def test_delete_asset(client, db_session):
 
     asset = Asset(
