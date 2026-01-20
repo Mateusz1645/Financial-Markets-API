@@ -43,6 +43,17 @@ def test_delete_asset(client, db_session):
     assert response.status_code == 200, f"Expected 200, got {response.status_code}. Response: {response.text}"
     assert response.json()["status"] == "success", f"Expected status 'success', got {response.json()}"
 
+def test_delete_asset_not_exist(client, db_session):
+
+    response = client.delete(
+        "/assets/delete",
+        params={
+            "asset_id": 99999
+        }
+    )
+    assert response.status_code == 404, f"Expected 404, got {response.status_code}. Response: {response.text}"
+
+
 def test_list_assets(client):
     response = client.get("/assets/list")
 
