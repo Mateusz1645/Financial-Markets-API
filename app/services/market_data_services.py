@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from typing import Optional
 from sqlalchemy.orm import Session
 from models import Equity, Forex
+import pandas as pd
 import yfinance as yf
 from datetime import date, timedelta, datetime
 from utils.date_utils import parse_date
@@ -13,13 +14,13 @@ def import_all_equities_once(db: Session):
 
     equities = fd.Equities()
     df = equities.select()
-
+    df = df.reset_index()
+    df = df.fillna("Unknown")
     objects = []
-
-    for symbol, row in df.iterrows():
+    for _, row in df.iterrows():
         objects.append(
             Equity(
-                symbol=symbol,
+                symbol=row["symbol"],
                 isin=row.get("isin"),
                 name=row.get("name"),
                 currency=row.get("currency"),
@@ -32,7 +33,7 @@ def import_all_equities_once(db: Session):
             )
         )
 
-    db.bulk_save_objects(objects)
+    db.add_all(objects)
     db.commit()
 
 def import_all_forex_once(db: Session):

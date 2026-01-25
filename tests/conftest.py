@@ -10,7 +10,7 @@ os.environ["DATABASE_URL"] = "sqlite:///./test.db"
 from main import app
 from db import Base, engine, SessionLocal
 from services.inflation_service import load_inflation_from_custom_csv
-from services.market_data_services import import_all_forex_once
+from services.market_data_services import import_all_forex_once, import_all_equities_once
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -46,6 +46,7 @@ def populate_db(db_session):
     """
     load_inflation_from_custom_csv(db_session, "app/data/inflation.csv")
     import_all_forex_once(db_session)
+    import_all_equities_once(db_session)
     db_session.commit()
     yield
     for table in reversed(Base.metadata.sorted_tables):
