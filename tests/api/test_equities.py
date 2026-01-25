@@ -43,3 +43,24 @@ def test_add_equities_duplicate_isin(client):
 
     assert response.status_code == 400, f"Expected 400, got {response.status_code}. Response: {response.text}"
     assert response.json()["detail"] == "Equity with ISIN 'US0378331005' already exists"
+
+def test_delete_asset(client, db_session):
+
+    equity = Equity(
+        symbol="TEST12321",
+        isin="TEST123",
+        name="Test Equity",
+    )
+    db_session.add(equity)
+    db_session.commit()
+
+    response = client.delete(
+        "/equities/delete",
+        params={
+            "symbol": "TEST12321",
+            "isin": "TEST123"
+        }
+    )
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}. Response: {response.text}"
+    assert response.json()["status"] == "success", f"Expected status 'success', got {response.json()}"
+    assert response.json()["symbol"] == "TEST12321", f"Wrong symbol deleted: {response.symbol}"
