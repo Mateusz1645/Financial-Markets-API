@@ -7,6 +7,7 @@ GET_SYMBOL = {
     "US0231351067": "AMZN",    # Amazon
     "US30303M1027": "META",    # Meta
     "US88160R1014": "TSLA",    # Tesla
+    "ZZ0000000000": None,
 }
 
 def test_list_equities(client):
@@ -81,7 +82,15 @@ def test_get_equities(client):
         if response.status_code != 200:
             errors.append(f"{isin}: status {response.status_code}")
             continue
+
         data = response.json()
+
+        if expected_symbol is None:
+            if data != []:
+                errors.append(f"{isin}: expected empty list, got {data}")
+            continue
+
         if not any(symbol == expected_symbol for symbol in data):
             errors.append(f"{isin}: expected [{expected_symbol}], got {data}")
+            
     assert not errors, f"Found errors: {errors}"
