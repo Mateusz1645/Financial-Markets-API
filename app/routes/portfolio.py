@@ -193,7 +193,7 @@ def assets_choices(db: Session = Depends(get_db)):
     results = db.query(Asset.isin, Asset.name).distinct(Asset.isin).all()
     return [{"isin": isin, "name": name} for isin, name in results]
 
-@router.post("/calc_current_value")
+@router.get("/calc_current_value")
 def calculate_asset_value(id: Optional[int] = None, isin: Optional[str] = None, date: Optional[str] = None, date_to_calculate: Optional[str] = "today", db: Session = Depends(get_db)):
     """
     Calculate value of selected asset for date=date_to_calculate if not entered date=today.

@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(
-    title="Portfolio API",
+    title="Financial Markets API",
     docs_url="/",    lifespan=lifespan
 )
 

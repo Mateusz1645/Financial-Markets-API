@@ -3,7 +3,6 @@ from fastapi import HTTPException
 from typing import Optional
 from sqlalchemy.orm import Session
 from models import Equity, Forex
-import pandas as pd
 import yfinance as yf
 from datetime import date, timedelta, datetime
 from utils.date_utils import parse_date
