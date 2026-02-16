@@ -47,16 +47,6 @@ def test_add_inflation(client, db_session):
     assert db_record is not None, "Inflation record not found in DB after adding"
     assert db_record.value == 0.5, f"Expected DB value 0.5, got {db_record.value}"
 
-def test_delete_inflation(client, db_session):
-    record = Inflation(month=2, year=2099, value=0.4)
-    db_session.add(record)
-    db_session.commit()
-
-    response = client.delete("/inflation/delete", params={"inflation_id": record.id})
-    assert response.status_code == 200
-
-    db_record = db_session.query(Inflation).filter_by(id=record.id).first()
-    assert db_record is None
 
 def test_delete_inflation(client, db_session):
     record = Inflation(month=2, year=2099, value=0.4)

@@ -54,7 +54,7 @@ def test_add_equities_duplicate_isin(client):
     assert response.status_code == 400, f"Expected 400, got {response.status_code}. Response: {response.text}"
     assert response.json()["detail"] == "Equity with ISIN 'US0378331005' already exists"
 
-def test_delete_asset(client, db_session):
+def test_delete_equity(client, db_session):
 
     equity = Equity(
         symbol="TEST12321",
