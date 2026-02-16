@@ -16,7 +16,7 @@ from services.market_data_services import import_all_forex_once, import_all_equi
 @pytest.fixture(scope="session", autouse=True)
 def create_test_db():
     """
-    Create all database tables once per test session.
+    Create all database tables once per session.
     Drops all tables after the session ends.
     """
     Base.metadata.create_all(bind=engine)
@@ -34,24 +34,28 @@ def db_session():
     try:
         yield db
     finally:
-        db.close()
         db.rollback()
+        db.close()
 
 
-@pytest.fixture(scope="function", autouse=True)
-def populate_db(db_session):
+@pytest.fixture(scope="session", autouse=True)
+def populate_db():
     """
     Populate the database with initial test data before each test.
     This fixture runs automatically for every test function.
     """
-    load_inflation_from_custom_csv(db_session, "app/data/inflation.csv")
-    import_all_forex_once(db_session)
-    import_all_equities_once(db_session)
-    db_session.commit()
-    yield
-    for table in reversed(Base.metadata.sorted_tables):
-        db_session.execute(table.delete())
-    db_session.commit()
+    db = SessionLocal()
+    try: 
+        load_inflation_from_custom_csv(db, "app/data/inflation.csv")
+        import_all_forex_once(db)
+        import_all_equities_once(db)
+        db.commit()
+        yield
+    finally:
+        db.close()
+    # for table in reversed(Base.metadata.sorted_tables):
+    #     db_session.execute(table.delete())
+    # db_session.commit()
 
 
 @pytest.fixture()

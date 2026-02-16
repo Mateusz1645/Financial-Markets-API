@@ -112,6 +112,6 @@ def get_symbol_from_isin(isin: str, db: Session = Depends(get_db)):
     records = db.query(Equity).filter_by(isin=isin).all()
 
     if not records:
-        raise HTTPException(status_code=400, detail=f"No data in db equities for isin: {isin}")
+        return []
 
     return [r.symbol for r in records]
