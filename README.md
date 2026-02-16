@@ -121,7 +121,7 @@ This logic is handled via FastAPI lifespan.
 | DELETE | `/assets/delete` | Delete an asset |
 | GET | `/assets/list` | List all assets |
 | GET | `/assets/choices` | Available asset choices |
-| POST | `/assets/calc_current_value` | Calculate current asset value |
+| GET | `/assets/calc_current_value` | Calculate current asset value |
 
 ### Equities
 
