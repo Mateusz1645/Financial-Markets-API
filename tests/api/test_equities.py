@@ -1,5 +1,4 @@
 from models import Equity
-import pytest
 
 GET_SYMBOL = {
     "US0378331005": "AAPL",    # Apple

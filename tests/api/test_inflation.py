@@ -1,4 +1,3 @@
-import warnings
 from models import Inflation
 
 def test_inflation(client):
