@@ -1,6 +1,6 @@
 from models import Inflation
 
-def test_inflation(client):
+def test_inflation_list(client):
     response = client.get("/inflation/list")
 
     assert response.status_code == 200, f"Expected 200, got {response.status_code}. Response: {response.text}"
