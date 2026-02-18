@@ -8,8 +8,15 @@ from utils.date_utils import parse_date
 
 router = APIRouter(prefix="/forex", tags=["Forex"])
 
+
 @router.get("/list")
-def list_forex(first_currency: str, second_currency: str, start_date: str = None, end_date: str = None, db: Session = Depends(get_db)):
+def list_forex(
+    first_currency: str,
+    second_currency: str,
+    start_date: str = None,
+    end_date: str = None,
+    db: Session = Depends(get_db),
+):
     """
     List all forex records in the database for the given currency pair.
     Optional: start_date, end_date
@@ -38,8 +45,5 @@ def list_forex(first_currency: str, second_currency: str, start_date: str = None
     for r in records:
         if r.value is None or math.isnan(r.value) or math.isinf(r.value):
             continue
-        result.append({
-            "date": r.date.date().isoformat(),
-            "value": r.value
-        })
+        result.append({"date": r.date.date().isoformat(), "value": r.value})
     return result

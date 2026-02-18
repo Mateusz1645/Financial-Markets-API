@@ -15,6 +15,7 @@ DATE_FORMATS = [
     "%d/%m/%Y",
 ]
 
+
 def parse_date(value) -> datetime:
     if isinstance(value, (datetime, pd.Timestamp)):
         return value.to_pydatetime() if hasattr(value, "to_pydatetime") else value
@@ -30,5 +31,5 @@ def parse_date(value) -> datetime:
 
     raise HTTPException(
         status_code=400,
-        detail="Invalid date format. Accepted formats: DD.MM.YYYY, DD.MM.YYYY HH:MM, YYYY-MM-DD, etc."
+        detail="Invalid date format. Accepted formats: DD.MM.YYYY, DD.MM.YYYY HH:MM, YYYY-MM-DD, etc.",
     )

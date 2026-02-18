@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text
 from db import Base
 
+
 class Asset(Base):
     __tablename__ = "assets"
     id = Column(Integer, primary_key=True, index=True)
@@ -15,6 +16,7 @@ class Asset(Base):
     coupon_rate = Column(Float)
     inflation_first_year = Column(Float)
 
+
 class Inflation(Base):
     __tablename__ = "inflation"
     id = Column(Integer, primary_key=True, index=True)
@@ -22,12 +24,14 @@ class Inflation(Base):
     month = Column(Integer, index=True)
     value = Column(Float)
 
+
 class Reference_Rate(Base):
     __tablename__ = "reference_rate"
     id = Column(Integer, primary_key=True, index=True)
     year = Column(Integer, index=True)
     month = Column(Integer, index=True)
     value = Column(Float)
+
 
 class Equity(Base):
     __tablename__ = "equities"
@@ -59,6 +63,7 @@ class Equity(Base):
     zipcode = Column(String)
     # web
     website = Column(String)
+
 
 class Forex(Base):
     __tablename__ = "forex"

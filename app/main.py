@@ -5,7 +5,11 @@ from contextlib import asynccontextmanager
 from sqlalchemy.orm import Session
 from services.inflation_service import load_inflation_from_custom_csv
 from services.reference_rate_service import load_reference_rate_from_custom_csv
-from services.market_data_services import import_all_equities_once, import_all_forex_once
+from services.market_data_services import (
+    import_all_equities_once,
+    import_all_forex_once,
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,10 +25,8 @@ async def lifespan(app: FastAPI):
     db.close()
     yield
 
-app = FastAPI(
-    title="Financial Markets API",
-    docs_url="/",    lifespan=lifespan
-)
+
+app = FastAPI(title="Financial Markets API", docs_url="/", lifespan=lifespan)
 
 app.include_router(portfolio.router)
 app.include_router(equities.router)
