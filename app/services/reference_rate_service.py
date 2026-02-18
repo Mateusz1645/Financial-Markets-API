@@ -14,16 +14,16 @@ MONTHS_PL = {
     "Wrzesień": 9,
     "Październik": 10,
     "Listopad": 11,
-    "Grudzień": 12
+    "Grudzień": 12,
 }
 
 
 def load_reference_rate_from_custom_csv(db: Session, csv_path: str):
     df = pd.read_csv(csv_path, skipinitialspace=True)
-    df = df.replace(r'^\s*$', None, regex=True)
+    df = df.replace(r"^\s*$", None, regex=True)
 
     for _, row in df.iterrows():
-        month_name = row['label']
+        month_name = row["label"]
         month = MONTHS_PL.get(month_name)
         if not month:
             continue

@@ -3,13 +3,18 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 import time
 from dotenv import load_dotenv
+
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./local.db")
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
+
 
 def get_db():
     db = SessionLocal()
@@ -17,6 +22,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 def wait_for_db(engine, retries=10):
     for _ in range(retries):

@@ -7,6 +7,7 @@ import yfinance as yf
 from datetime import date, timedelta, datetime
 from utils.date_utils import parse_date
 
+
 def import_all_equities_once(db: Session):
     if db.query(Equity).first():
         return
@@ -35,6 +36,7 @@ def import_all_equities_once(db: Session):
     db.add_all(objects)
     db.commit()
 
+
 def import_all_forex_once(db: Session):
 
     pairs = [
@@ -51,7 +53,7 @@ def import_all_forex_once(db: Session):
         ("DKK", "PLN"),
     ]
 
-    start_date = datetime.now() - timedelta(days=365*10)
+    start_date = datetime.now() - timedelta(days=365 * 10)
     end_date = datetime.now()
 
     for first, second in pairs:
@@ -65,19 +67,25 @@ def import_all_forex_once(db: Session):
 
         objects = []
         for index, row in df.iterrows():
-            objects.append(Forex(
+            objects.append(
+                Forex(
                     first_currency=first,
                     second_currency=second,
                     value=float(row["Close"]),
-                    date=index.to_pydatetime()))
+                    date=index.to_pydatetime(),
+                )
+            )
 
         db.bulk_save_objects(objects)
         db.commit()
 
-def get_current_price_from_yfinance(symbol: str, target_date: Optional[date] = "today") -> float:
-    
+
+def get_current_price_from_yfinance(
+    symbol: str, target_date: Optional[date] = "today"
+) -> float:
+
     ticker = yf.Ticker(symbol)
-    
+
     if target_date == "today":
         data = ticker.history(period="1d")
     else:
@@ -94,8 +102,9 @@ def get_current_price_from_yfinance(symbol: str, target_date: Optional[date] = "
         "symbol": symbol,
         "date": row.name.date().isoformat(),
         "price": price,
-        "currency": currency
+        "currency": currency,
     }
+
 
 def get_forex_rate(db: Session, first: str, second: str, date: datetime.date):
     start_of_day = datetime.combine(date, datetime.min.time())
