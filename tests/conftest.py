@@ -10,6 +10,7 @@ os.environ["DATABASE_URL"] = "sqlite:///./test.db"
 from main import app
 from db import Base, engine, SessionLocal
 from services.inflation_service import load_inflation_from_custom_csv
+from services.reference_rate_service import load_reference_rate_from_custom_csv
 from services.market_data_services import import_all_forex_once, import_all_equities_once
 
 
@@ -47,6 +48,7 @@ def populate_db():
     db = SessionLocal()
     try: 
         load_inflation_from_custom_csv(db, "app/data/inflation.csv")
+        load_reference_rate_from_custom_csv(db, "app/data/reference_rate_NBP.csv")
         import_all_forex_once(db)
         import_all_equities_once(db)
         db.commit()
