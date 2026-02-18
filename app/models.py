@@ -22,6 +22,13 @@ class Inflation(Base):
     month = Column(Integer, index=True)
     value = Column(Float)
 
+class Reference_Rate(Base):
+    __tablename__ = "reference_rate"
+    id = Column(Integer, primary_key=True, index=True)
+    year = Column(Integer, index=True)
+    month = Column(Integer, index=True)
+    value = Column(Float)
+
 class Equity(Base):
     __tablename__ = "equities"
 
