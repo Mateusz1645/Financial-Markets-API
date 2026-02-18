@@ -24,7 +24,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-test.txt
           pip install ruff
-            - name: Run Ruff (lint check)
 
       - name: Run Ruff (lint check)
         run: |
