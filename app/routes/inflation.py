@@ -61,6 +61,9 @@ def add_inflation(month: int, year: int, value: Optional[float] = None, db: Sess
                 status_code=502,
                 detail=f"Failed to fetch inflation after {max_retries} attempts: {last_exception}"
             )
+        
+    if value >= 1:
+        value = round(float(value / 100), 4)
 
     inflation = Inflation(
         month=month,
@@ -82,7 +85,7 @@ def add_inflation(month: int, year: int, value: Optional[float] = None, db: Sess
 @router.delete("/delete")
 def delete_inflation(inflation_id: int, db: Session = Depends(get_db)):
     """
-    Delete a single asset from database manually.
+    Delete a single inflation from database manually.
     """
     inflation = db.query(Inflation).filter(Inflation.id == inflation_id).first()
     if not inflation:
