@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from models import Reference_Rate
 from utils.date_utils import parse_date
 
+
 def load_reference_rate_from_custom_csv(db: Session, csv_path: str):
     df = pd.read_csv(csv_path, skipinitialspace=True)
     df = df.replace(r"^\s*$", None, regex=True)

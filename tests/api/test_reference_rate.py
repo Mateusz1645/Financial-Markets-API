@@ -1,6 +1,7 @@
 from models import Reference_Rate
 from utils.date_utils import parse_date
 
+
 def test_reference_rate_list(client):
     response = client.get("/reference_rate/list")
 
@@ -23,9 +24,7 @@ def test_reference_rate_list(client):
             f"Row {idx}: value is not numeric: {value}"
         )
 
-        assert value < 0.5, (
-            f"Row {idx}: for date expected value < 0.5, got {value}"
-        )
+        assert value < 0.5, f"Row {idx}: for date expected value < 0.5, got {value}"
 
 
 def test_add_reference_rate(client, db_session):
@@ -44,7 +43,11 @@ def test_add_reference_rate(client, db_session):
     assert data["date"] == "1900-01-01", f"Expected date 1900-01-01, got {data['date']}"
     assert data["value"] == 0.2, f"Expected value 0.2, got {data['value']}"
 
-    db_record = db_session.query(Reference_Rate).filter_by(date=parse_date("1900-01-01")).first()
+    db_record = (
+        db_session.query(Reference_Rate)
+        .filter_by(date=parse_date("1900-01-01"))
+        .first()
+    )
     assert db_record is not None, "Reference Rate record not found in DB after adding"
     assert db_record.value == 0.2, f"Expected DB value 0.2, got {db_record.value}"
 

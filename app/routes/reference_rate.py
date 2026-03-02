@@ -14,16 +14,14 @@ def list_reference_rate(db: Session = Depends(get_db)):
     """
     List all reference rate records in the database.
     """
-    records = (
-        db.query(Reference_Rate)
-        .order_by(Reference_Rate.date)
-        .all()
-    )
+    records = db.query(Reference_Rate).order_by(Reference_Rate.date).all()
     result = []
     for r in records:
         if r.value is None or math.isnan(r.value) or math.isinf(r.value):
             continue
-        result.append({"id": r.id, "date": r.date.strftime("%Y-%m-%d"), "value": r.value})
+        result.append(
+            {"id": r.id, "date": r.date.strftime("%Y-%m-%d"), "value": r.value}
+        )
     return result
 
 
