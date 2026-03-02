@@ -394,9 +394,11 @@ def calculate_value_of_bond(asset: Asset, db: Session, date: str = "today"):
                 )
 
                 period_end = (
-                    min(next_change.date, valuation_date) if next_change else valuation_date
+                    min(next_change.date, valuation_date)
+                    if next_change
+                    else valuation_date
                 )
-                
+
                 rate = current_rate + asset.coupon_rate
 
             days = (period_end - current_date).days
@@ -406,7 +408,7 @@ def calculate_value_of_bond(asset: Asset, db: Session, date: str = "today"):
             current_date = period_end
 
         return value
-    
+
     elif type_of_bond == "DOR":
         max_end_date = date_start + relativedelta(years=2)
         if valuation_date > max_end_date:
@@ -434,7 +436,9 @@ def calculate_value_of_bond(asset: Asset, db: Session, date: str = "today"):
                 )
 
                 period_end = (
-                    min(next_change.date, valuation_date) if next_change else valuation_date
+                    min(next_change.date, valuation_date)
+                    if next_change
+                    else valuation_date
                 )
                 rate = current_rate + asset.coupon_rate
 
