@@ -121,3 +121,15 @@ def test_upload_assets_valid_csv(client):
     data = response.json()
     assert data["status"] == "success"
     assert data["message"][-15:] == "assets uploaded"
+
+
+def test_upload_assets_valid_excel(client):
+    with open("sample_portfolio.xlsx", "rb") as f:
+        response = client.post(
+            "/assets/upload", files={"file": ("sample_portfolio.xlsx", f, "text/xlsx")}
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["message"][-15:] == "assets uploaded"
