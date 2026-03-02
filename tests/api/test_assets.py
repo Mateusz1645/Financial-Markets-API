@@ -110,11 +110,11 @@ def test_list_assets(client):
         f"Expected list, got {type(response.json())}: {response.json()}"
     )
 
+
 def test_upload_assets_valid_csv(client):
     with open("sample_portfolio.csv", "rb") as f:
         response = client.post(
-            "/assets/upload",
-            files={"file": ("sample_portfolio.csv", f, "text/csv")}
+            "/assets/upload", files={"file": ("sample_portfolio.csv", f, "text/csv")}
         )
 
     assert response.status_code == 200
