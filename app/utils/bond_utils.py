@@ -15,11 +15,11 @@ def validate_bond_fields(
     bond_type = isin[:3].upper()
 
     # COI / EDO / ROS / ROD
-    if bond_type in ("COI", "EDO", "ROS", "ROD"):
+    if bond_type in ("COI", "EDO", "ROS", "ROD", "DOR", "ROR"):
         if coupon_rate is None or inflation_first_year is None:
             raise HTTPException(
                 status_code=400,
-                detail=f"COI/EDO bonds require coupon_rate and inflation_first_year ({isin})",
+                detail=f"COI/EDO/ROS/ROD/DOR/ROR bonds require coupon_rate and inflation_first_year ({isin})",
             )
 
     # OTS / TOS

@@ -4,8 +4,10 @@ from models import Asset
 import datetime
 from dateutil.relativedelta import relativedelta
 from services.inflation_service import get_inflation
+from services.reference_rate_service import get_reference_rate
 from requests.exceptions import HTTPError
 from utils.date_utils import parse_date
+from models import Reference_Rate
 import math
 
 
@@ -63,7 +65,7 @@ def value_tos(margin: float, days: float, value: int = 100) -> float:
 
 def calculate_value_of_bond(asset: Asset, db: Session, date: str = "today"):
 
-    type_of_bond = asset.isin[:3]
+    type_of_bond = asset.isin.strip().upper()[:3]
 
     if asset.type_.upper() != "BOND":
         raise HTTPException(
@@ -71,7 +73,7 @@ def calculate_value_of_bond(asset: Asset, db: Session, date: str = "today"):
             detail=f"Wrong asset type for calculating bond value: {asset.isin}, {asset.name}, {asset.date}",
         )
 
-    if type_of_bond in ["COI", "EDO", "ROS", "ROD"] and (
+    if type_of_bond in ["COI", "EDO", "ROS", "ROD", "DOR", "ROR"] and (
         asset.coupon_rate is None or asset.inflation_first_year is None
     ):
         raise HTTPException(
@@ -105,6 +107,10 @@ def calculate_value_of_bond(asset: Asset, db: Session, date: str = "today"):
         max_years = 6
     elif type_of_bond == "ROD":
         max_years = 12
+    elif type_of_bond == "ROR":
+        max_years = 1
+    elif type_of_bond == "DOR":
+        max_years = 2
 
     if max_years is not None:
         max_end_date = date_start + relativedelta(years=max_years)
@@ -359,6 +365,89 @@ def calculate_value_of_bond(asset: Asset, db: Session, date: str = "today"):
         value += value_ots(
             margin=asset.coupon_rate, value=asset.transaction_price, days=days
         )
+        return value
+
+    elif type_of_bond == "ROR":
+        max_end_date = date_start + relativedelta(years=1)
+        if valuation_date > max_end_date:
+            valuation_date = max_end_date
+
+        current_date = date_start
+        value = asset.transaction_price
+        first_month_done = False
+
+        while current_date < valuation_date:
+            if not first_month_done:
+                rate = asset.coupon_rate + asset.inflation_first_year
+                period_end = current_date + relativedelta(month=1)
+                if period_end > valuation_date:
+                    period_end = valuation_date
+                first_month_done = True
+            else:
+                current_rate = get_reference_rate(db, current_date)
+
+                next_change = (
+                    db.query(Reference_Rate)
+                    .filter(Reference_Rate.date > current_date)
+                    .order_by(Reference_Rate.date.asc())
+                    .first()
+                )
+
+                period_end = (
+                    min(next_change.date, valuation_date)
+                    if next_change
+                    else valuation_date
+                )
+
+                rate = current_rate + asset.coupon_rate
+
+            days = (period_end - current_date).days
+            interest = value * rate * days / 365.25
+            value += interest * 0.81  # Belka tax
+
+            current_date = period_end
+
+        return value
+
+    elif type_of_bond == "DOR":
+        max_end_date = date_start + relativedelta(years=2)
+        if valuation_date > max_end_date:
+            valuation_date = max_end_date
+
+        current_date = date_start
+        value = asset.transaction_price
+        first_month_done = False
+
+        while current_date < valuation_date:
+            if not first_month_done:
+                rate = asset.coupon_rate + asset.inflation_first_year
+                period_end = current_date + relativedelta(months=1)
+                if period_end > valuation_date:
+                    period_end = valuation_date
+                first_month_done = True
+            else:
+                current_rate = get_reference_rate(db, current_date)
+
+                next_change = (
+                    db.query(Reference_Rate)
+                    .filter(Reference_Rate.date > current_date)
+                    .order_by(Reference_Rate.date.asc())
+                    .first()
+                )
+
+                period_end = (
+                    min(next_change.date, valuation_date)
+                    if next_change
+                    else valuation_date
+                )
+                rate = current_rate + asset.coupon_rate
+
+            days = (period_end - current_date).days
+            interest = value * rate * days / 365.25
+            value += interest * 0.81  # Belka tax
+
+            current_date = period_end
+
         return value
 
     elif type_of_bond == "TOS":
