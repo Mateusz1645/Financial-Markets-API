@@ -374,24 +374,32 @@ def calculate_value_of_bond(asset: Asset, db: Session, date: str = "today"):
 
         current_date = date_start
         value = asset.transaction_price
+        first_month_done = False
 
         while current_date < valuation_date:
-            current_rate = get_reference_rate(db, current_date)
+            if not first_month_done:
+                rate = asset.coupon_rate + asset.inflation_first_year
+                period_end = current_date + relativedelta(month=1)
+                if period_end > valuation_date:
+                    period_end = valuation_date
+                first_month_done = True
+            else:
+                current_rate = get_reference_rate(db, current_date)
 
-            next_change = (
-                db.query(Reference_Rate)
-                .filter(Reference_Rate.date > current_date)
-                .order_by(Reference_Rate.date.asc())
-                .first()
-            )
+                next_change = (
+                    db.query(Reference_Rate)
+                    .filter(Reference_Rate.date > current_date)
+                    .order_by(Reference_Rate.date.asc())
+                    .first()
+                )
 
-            period_end = (
-                min(next_change.date, valuation_date) if next_change else valuation_date
-            )
+                period_end = (
+                    min(next_change.date, valuation_date) if next_change else valuation_date
+                )
+                
+                rate = current_rate + asset.coupon_rate
 
             days = (period_end - current_date).days
-
-            rate = current_rate + asset.coupon_rate
             interest = value * rate * days / 365.25
             value += interest * 0.81  # Belka tax
 
@@ -406,24 +414,31 @@ def calculate_value_of_bond(asset: Asset, db: Session, date: str = "today"):
 
         current_date = date_start
         value = asset.transaction_price
+        first_month_done = False
 
         while current_date < valuation_date:
-            current_rate = get_reference_rate(db, current_date)
+            if not first_month_done:
+                rate = asset.coupon_rate + asset.inflation_first_year
+                period_end = current_date + relativedelta(months=1)
+                if period_end > valuation_date:
+                    period_end = valuation_date
+                first_month_done = True
+            else:
+                current_rate = get_reference_rate(db, current_date)
 
-            next_change = (
-                db.query(Reference_Rate)
-                .filter(Reference_Rate.date > current_date)
-                .order_by(Reference_Rate.date.asc())
-                .first()
-            )
+                next_change = (
+                    db.query(Reference_Rate)
+                    .filter(Reference_Rate.date > current_date)
+                    .order_by(Reference_Rate.date.asc())
+                    .first()
+                )
 
-            period_end = (
-                min(next_change.date, valuation_date) if next_change else valuation_date
-            )
+                period_end = (
+                    min(next_change.date, valuation_date) if next_change else valuation_date
+                )
+                rate = current_rate + asset.coupon_rate
 
             days = (period_end - current_date).days
-
-            rate = current_rate + asset.coupon_rate
             interest = value * rate * days / 365.25
             value += interest * 0.81  # Belka tax
 
