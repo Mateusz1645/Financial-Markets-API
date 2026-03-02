@@ -2,6 +2,8 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from models import Reference_Rate
 from utils.date_utils import parse_date
+from fastapi import HTTPException
+from datetime import datetime
 
 
 def load_reference_rate_from_custom_csv(db: Session, csv_path: str):
@@ -24,3 +26,20 @@ def load_reference_rate_from_custom_csv(db: Session, csv_path: str):
             db.add(Reference_Rate(date=date, value=value))
 
     db.commit()
+
+
+def get_reference_rate(db: Session, target_date: datetime) -> float:
+    record = (
+        db.query(Reference_Rate)
+        .filter(Reference_Rate.date <= target_date)
+        .order_by(Reference_Rate.date.desc())
+        .first()
+    )
+
+    if not record:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No reference rate found before {target_date}",
+        )
+
+    return record.value
