@@ -1,6 +1,6 @@
 from models import Reference_Rate
-from datetime import datetime
 from utils.date_utils import parse_date
+
 def test_reference_rate_list(client):
     response = client.get("/reference_rate/list")
 
