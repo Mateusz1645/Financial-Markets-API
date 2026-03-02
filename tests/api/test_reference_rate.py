@@ -1,4 +1,5 @@
 from models import Reference_Rate
+from utils.date_utils import parse_date
 
 
 def test_reference_rate_list(client):
@@ -13,25 +14,22 @@ def test_reference_rate_list(client):
     assert isinstance(data, list), f"Expected list, got {type(data)}: {data}"
     assert len(data) > 0, "Expected non-empty list, got empty list"
     for idx, row in enumerate(data):
-        assert "year" in row, f"Row {idx}: missing key 'year'"
-        assert "value" in row, f"Row {idx}: missing key 'value'"
+        assert "date" in row, f"Row {idx}: missing key 'date'"
 
-        year = row["year"]
+        date = row["date"]
         value = row["value"]
 
-        assert isinstance(year, int), f"Row {idx}: year is not int: {year}"
+        assert isinstance(date, str), f"Row {idx}: date is not string: {date}"
         assert isinstance(value, (int, float)), (
             f"Row {idx}: value is not numeric: {value}"
         )
 
-        assert value < 0.5, (
-            f"Row {idx}: for year {year} expected value < 0.5, got {value}"
-        )
+        assert value < 0.5, f"Row {idx}: for date expected value < 0.5, got {value}"
 
 
 def test_add_reference_rate(client, db_session):
     response = client.post(
-        "/reference_rate/add", params={"month": 1, "year": 2099, "value": 0.2}
+        "/reference_rate/add", params={"date": "1900-01-01", "value": 0.2}
     )
 
     assert response.status_code == 200, (
@@ -42,17 +40,20 @@ def test_add_reference_rate(client, db_session):
     assert data["message"] == "Reference Rate added successfully", (
         f"Unexpected message: {data}"
     )
-    assert data["month"] == 1, f"Expected month 1, got {data['month']}"
-    assert data["year"] == 2099, f"Expected year 2099, got {data['year']}"
+    assert data["date"] == "1900-01-01", f"Expected date 1900-01-01, got {data['date']}"
     assert data["value"] == 0.2, f"Expected value 0.2, got {data['value']}"
 
-    db_record = db_session.query(Reference_Rate).filter_by(month=1, year=2099).first()
+    db_record = (
+        db_session.query(Reference_Rate)
+        .filter_by(date=parse_date("1900-01-01"))
+        .first()
+    )
     assert db_record is not None, "Reference Rate record not found in DB after adding"
-    assert db_record.value == 0.2, f"Expected DB value 0.5, got {db_record.value}"
+    assert db_record.value == 0.2, f"Expected DB value 0.2, got {db_record.value}"
 
 
 def test_delete_reference_rate(client, db_session):
-    record = Reference_Rate(month=2, year=2099, value=0.3)
+    record = Reference_Rate(date=parse_date("1900-01-01"), value=0.3)
     db_session.add(record)
     db_session.commit()
 
@@ -71,7 +72,7 @@ def test_delete_reference_rate(client, db_session):
 
 def test_add_reference_rate_duplicate(client, db_session):
     response = client.post(
-        "/reference_rate/add", params={"month": 12, "year": 2025, "value": 4.0}
+        "/reference_rate/add", params={"date": "1900-01-01", "value": 4.0}
     )
 
     assert response.status_code == 400, (
