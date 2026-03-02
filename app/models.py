@@ -28,8 +28,7 @@ class Inflation(Base):
 class Reference_Rate(Base):
     __tablename__ = "reference_rate"
     id = Column(Integer, primary_key=True, index=True)
-    year = Column(Integer, index=True)
-    month = Column(Integer, index=True)
+    date = Column(DateTime, index=True)
     value = Column(Float)
 
 

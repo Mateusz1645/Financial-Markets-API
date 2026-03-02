@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from db import get_db
 from models import Reference_Rate
+from utils.date_utils import parse_date
 import math
 
 router = APIRouter(prefix="/reference_rate", tags=["Reference_Rate"])
@@ -15,32 +16,33 @@ def list_reference_rate(db: Session = Depends(get_db)):
     """
     records = (
         db.query(Reference_Rate)
-        .order_by(Reference_Rate.year, Reference_Rate.month)
+        .order_by(Reference_Rate.date)
         .all()
     )
     result = []
     for r in records:
         if r.value is None or math.isnan(r.value) or math.isinf(r.value):
             continue
-        result.append({"id": r.id, "year": r.year, "month": r.month, "value": r.value})
+        result.append({"id": r.id, "date": r.date.strftime("%Y-%m-%d"), "value": r.value})
     return result
 
 
 @router.post("/add")
 def add_reference_rate(
-    month: int, year: int, value: Optional[float] = None, db: Session = Depends(get_db)
+    date: str, value: Optional[float] = None, db: Session = Depends(get_db)
 ):
     """
     Add a single reference rate for input month, year and optional value.
     """
-    if not 1 <= month <= 12:
-        raise HTTPException(status_code=400, detail="Month must be beetwen 1 and 12")
+    try:
+        date = parse_date(date)
+    except HTTPException:
+        raise HTTPException(status_code=400, detail=f"Wrong data input {date}")
 
     reference_rate = (
         db.query(Reference_Rate)
         .filter(
-            Reference_Rate.month == month,
-            Reference_Rate.year == year,
+            Reference_Rate.date == date,
             Reference_Rate.value.isnot(None),
         )
         .first()
@@ -49,12 +51,12 @@ def add_reference_rate(
     if reference_rate:
         raise HTTPException(
             status_code=400,
-            detail=f"Reference Rate for month {month}, year {year} already exists: {reference_rate.value}",
+            detail=f"Reference Rate for date: {reference_rate.date} already exists: {reference_rate.value}",
         )
     if value >= 1:
         value = round(float(value / 100), 4)
 
-    reference_rate = Reference_Rate(month=month, year=year, value=value)
+    reference_rate = Reference_Rate(date=date, value=value)
 
     db.add(reference_rate)
     db.commit()
@@ -62,8 +64,7 @@ def add_reference_rate(
 
     return {
         "message": "Reference Rate added successfully",
-        "month": month,
-        "year": year,
+        "date": date.strftime("%Y-%m-%d"),
         "value": value,
     }
 
@@ -83,5 +84,5 @@ def delete_reference_rate(reference_rate_id: int, db: Session = Depends(get_db))
     db.commit()
     return {
         "status": "success",
-        "message": f"Inflation with id {reference_rate.id} deleted year: {reference_rate.year}, month: {reference_rate.month}, value: {reference_rate.value}",
+        "message": f"Reference rate with id {reference_rate.id} deleted, date: {reference_rate.date}, value: {reference_rate.value}",
     }
