@@ -14,12 +14,13 @@ from utils.date_utils import parse_date
 from utils.bond_utils import validate_bond_fields
 import pandas as pd
 from math import isfinite
+from auth import get_current_user
 
 router = APIRouter(prefix="/assets", tags=["Portfolio"])
 
 
 @router.post("/upload")
-def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)):
+def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     """
     Upload a portfolio file (Excel or CSV) to the database.
     Transactions on the same day with the same attributes (ISIN, currency, type, coupon_rate)
@@ -98,6 +99,7 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
                 Asset.inflation_first_year == inflation_first_year,
                 Asset.date >= start_of_day,
                 Asset.date < end_of_day,
+                Asset.user_id == current_user.id,
             )
             .first()
         )
@@ -117,6 +119,7 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
                 type_=type_,
                 coupon_rate=coupon_rate,
                 inflation_first_year=inflation_first_year,
+                user_id=current_user.id
             )
             db.add(asset)
     db.commit()
@@ -136,6 +139,7 @@ def add_asset(
     coupon_rate: Optional[float] = None,
     inflation_first_year: Optional[float] = None,
     db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
     """
     Add a single asset to the database manually.
@@ -190,6 +194,7 @@ def add_asset(
             Asset.inflation_first_year == inflation_first_year,
             Asset.date >= start_of_day,
             Asset.date < end_of_day,
+            Asset.user_id == current_user.id
         )
         .first()
     )
@@ -209,6 +214,7 @@ def add_asset(
             type_=type_,
             coupon_rate=coupon_rate,
             inflation_first_year=inflation_first_year,
+            user_id=current_user.id
         )
         db.add(asset)
 
@@ -217,11 +223,11 @@ def add_asset(
 
 
 @router.delete("/delete")
-def delete_asset(asset_id: int, db: Session = Depends(get_db)):
+def delete_asset(asset_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     """
     Delete a single asset from database manually.
     """
-    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    asset = db.query(Asset).filter(Asset.id == asset_id, Asset.user_id == current_user.id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
 
@@ -231,11 +237,11 @@ def delete_asset(asset_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/list")
-def list_assets(db: Session = Depends(get_db)):
+def list_assets(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     """
     List all assets in the database.
     """
-    assets = db.query(Asset).limit(300).all()
+    assets = db.query(Asset).filter(Asset.user_id == current_user.id).limit(300).all()
     result = []
     for a in assets:
         result.append(
@@ -267,11 +273,11 @@ def list_assets(db: Session = Depends(get_db)):
 
 
 @router.get("/choices")
-def assets_choices(db: Session = Depends(get_db)):
+def assets_choices(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     """
     List available assets (ISIN + NAME) for selection.
     """
-    results = db.query(Asset.isin, Asset.name).distinct(Asset.isin).all()
+    results = db.query(Asset.isin, Asset.name).filter((Asset.user_id == current_user.id)).distinct(Asset.isin).all()
     return [{"isin": isin, "name": name} for isin, name in results]
 
 
@@ -282,6 +288,7 @@ def calculate_asset_value(
     date: Optional[str] = None,
     date_to_calculate: Optional[str] = "today",
     db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
     """
     Calculate value of selected asset for date=date_to_calculate if not entered date=today.
@@ -292,7 +299,7 @@ def calculate_asset_value(
     """
 
     if id:
-        asset = db.query(Asset).filter(Asset.id == id).first()
+        asset = db.query(Asset).filter(Asset.id == id, Asset.user_id == current_user.id).first()
         if not asset:
             raise HTTPException(status_code=404, detail=f"Asset with id {id} not found")
     elif isin and date:
@@ -312,6 +319,7 @@ def calculate_asset_value(
                 Asset.isin == isin.upper(),
                 Asset.date >= start_of_day,
                 Asset.date < end_of_day,
+                Asset.user_id == current_user.id
             )
             .first()
         )

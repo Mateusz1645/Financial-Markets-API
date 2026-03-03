@@ -1,6 +1,15 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey
+from sqlalchemy.orm import relationship
 from db import Base
 
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    api_token = Column(String, unique=True, index=True)
+
+    assets = relationship("Asset", back_populates="user")
 
 class Asset(Base):
     __tablename__ = "assets"
@@ -15,7 +24,9 @@ class Asset(Base):
     type_ = Column(String)
     coupon_rate = Column(Float)
     inflation_first_year = Column(Float)
+    user_id = Column(Integer, ForeignKey("users.id"))
 
+    user = relationship("User", back_populates="assets")
 
 class Inflation(Base):
     __tablename__ = "inflation"
