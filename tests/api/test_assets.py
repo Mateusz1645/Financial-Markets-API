@@ -3,6 +3,7 @@ from datetime import datetime
 import pandas as pd
 from io import BytesIO
 
+
 def test_add_asset(client):
     response = client.post(
         "/assets/add",
@@ -146,6 +147,7 @@ def test_upload_assets_invalid_file(client):
     data = response.json()
     assert data["detail"] == "Unsupported file type. Use Excel or CSV.", response.text
 
+
 def test_upload_assets_empty_file(client):
     df = pd.DataFrame()
     output = BytesIO()
@@ -154,7 +156,14 @@ def test_upload_assets_empty_file(client):
     output.seek(0)
 
     response = client.post(
-        "/assets/upload", files={"file": ("myfile.xlsx", output, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
+        "/assets/upload",
+        files={
+            "file": (
+                "myfile.xlsx",
+                output,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
     )
 
     assert response.status_code == 400, response.text
