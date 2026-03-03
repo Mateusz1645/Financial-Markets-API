@@ -37,6 +37,9 @@ def upload_portfolio(file: UploadFile = File(...), db: Session = Depends(get_db)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error reading file: {e}")
 
+    if len(df) == 0:
+        raise HTTPException(status_code=400, detail=f"No data in input file: {file.filename}")
+
     for _, row in df.iterrows():
         isin = row["ISIN"].upper()
         name = row["NAME"]
