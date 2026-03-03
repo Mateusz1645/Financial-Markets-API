@@ -133,3 +133,14 @@ def test_upload_assets_valid_excel(client):
     data = response.json()
     assert data["status"] == "success"
     assert data["message"][-15:] == "assets uploaded"
+
+
+def test_upload_assets_invalid_file(client):
+    with open("requirements.txt", "rb") as f:
+        response = client.post(
+            "/assets/upload", files={"file": ("requirements.txt", f, "text/txt")}
+        )
+
+    assert response.status_code == 400
+    data = response.json()
+    assert data["detail"] == "Unsupported file type. Use Excel or CSV."
