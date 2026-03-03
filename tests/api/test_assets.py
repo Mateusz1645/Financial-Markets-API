@@ -1,5 +1,7 @@
 from models import Asset
 from datetime import datetime
+import pandas as pd
+from io import BytesIO
 
 
 def test_add_asset(client):
@@ -117,10 +119,10 @@ def test_upload_assets_valid_csv(client):
             "/assets/upload", files={"file": ("sample_portfolio.csv", f, "text/csv")}
         )
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
-    assert data["status"] == "success"
-    assert data["message"][-15:] == "assets uploaded"
+    assert data["status"] == "success", response.text
+    assert data["message"][-15:] == "assets uploaded", response.text
 
 
 def test_upload_assets_valid_excel(client):
@@ -129,10 +131,10 @@ def test_upload_assets_valid_excel(client):
             "/assets/upload", files={"file": ("sample_portfolio.xlsx", f, "text/xlsx")}
         )
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
-    assert data["status"] == "success"
-    assert data["message"][-15:] == "assets uploaded"
+    assert data["status"] == "success", response.text
+    assert data["message"][-15:] == "assets uploaded", response.text
 
 
 def test_upload_assets_invalid_file(client):
@@ -141,6 +143,27 @@ def test_upload_assets_invalid_file(client):
             "/assets/upload", files={"file": ("requirements.txt", f, "text/txt")}
         )
 
-    assert response.status_code == 400
+    assert response.status_code == 400, response.text
     data = response.json()
-    assert data["detail"] == "Unsupported file type. Use Excel or CSV."
+    assert data["detail"] == "Unsupported file type. Use Excel or CSV.", response.text
+
+
+def test_upload_assets_empty_file(client):
+    df = pd.DataFrame()
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False)
+    output.seek(0)
+
+    response = client.post(
+        "/assets/upload",
+        files={
+            "file": (
+                "myfile.xlsx",
+                output,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+    )
+
+    assert response.status_code == 400, response.text
